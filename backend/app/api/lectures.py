@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, get_settings_dep, get_storage_dep
+from app.api.deps import get_db, get_settings_dep, get_storage_dep, require_admin_password
 from app.core.config import Settings
 from app.models import Lecture, LectureStatus
 from app.schemas.lecture import LectureStatusResponse
@@ -19,6 +19,7 @@ async def create_lecture(
     title: str | None = Form(None),
     subject: str | None = Form(None),
     professor: str | None = Form(None),
+    _: bool = Depends(require_admin_password),
     db: Session = Depends(get_db),
     storage: StorageManager = Depends(get_storage_dep),
     settings: Settings = Depends(get_settings_dep),
@@ -64,6 +65,7 @@ async def create_lecture(
 @router.get("/lectures/{job_id}", response_model=LectureStatusResponse)
 async def get_lecture(
     job_id: str,
+    _: bool = Depends(require_admin_password),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ):

@@ -1,4 +1,5 @@
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const defaultAdminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "";
 
 export const withBase = (path: string) => {
   if (path.startsWith("http")) return path;
@@ -35,10 +36,21 @@ export type LectureStatusResponse = {
   professor?: string | null;
 };
 
-export async function createLecture(formData: FormData): Promise<LectureStatusResponse> {
+const withAdminHeader = (adminPassword?: string) => {
+  const value = adminPassword || defaultAdminPassword;
+  return value ? { "X-Admin-Password": value } : {};
+};
+
+export async function createLecture(
+  formData: FormData,
+  adminPassword?: string
+): Promise<LectureStatusResponse> {
   const res = await fetch(withBase("/lectures"), {
     method: "POST",
-    body: formData
+    body: formData,
+    headers: {
+      ...withAdminHeader(adminPassword)
+    }
   });
 
   if (!res.ok) {
@@ -49,8 +61,12 @@ export async function createLecture(formData: FormData): Promise<LectureStatusRe
   return res.json();
 }
 
-export async function fetchLecture(jobId: string): Promise<LectureStatusResponse> {
-  const res = await fetch(withBase(`/lectures/${jobId}`));
+export async function fetchLecture(jobId: string, adminPassword?: string): Promise<LectureStatusResponse> {
+  const res = await fetch(withBase(`/lectures/${jobId}`), {
+    headers: {
+      ...withAdminHeader(adminPassword)
+    }
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || "Failed to fetch job");
@@ -58,11 +74,18 @@ export async function fetchLecture(jobId: string): Promise<LectureStatusResponse
   return res.json();
 }
 
-export async function fetchCsvText(downloadUrl: string): Promise<string> {
-  const res = await fetch(withBase(downloadUrl));
+export async function fetchCsvText(downloadUrl: string, adminPassword?: string): Promise<string> {
+  const res = await fetch(withBase(downloadUrl), {
+    headers: {
+      ...withAdminHeader(adminPassword)
+    }
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || "Failed to fetch CSV");
   }
-  return res.text();
+  // 강제 UTF-8 디코딩 (헤더가 없거나 잘못된 경우 대비)
+  const buffer = await res.arrayBuffer();
+  const decoder = new TextDecoder("utf-8");
+  return decoder.decode(buffer);
 }

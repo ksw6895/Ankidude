@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     local_storage_path: str = "./storage"
 
     environment: str = "dev"
+    admin_password: Optional[str] = Field(default=None, alias="ADMIN_PASSWORD")
 
     model_config = SettingsConfigDict(
         env_file=".env",

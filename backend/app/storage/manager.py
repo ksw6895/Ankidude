@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import uuid
 from pathlib import Path
@@ -39,14 +40,27 @@ class StorageManager:
         key = f"{prefix}/{uuid.uuid4()}-{safe_name}"
         return key, os.path.basename(key)
 
-    def save_bytes(self, data: bytes, filename: str, prefix: str = "uploads") -> str:
+    def save_bytes(
+        self,
+        data: bytes,
+        filename: str,
+        prefix: str = "uploads",
+        *,
+        content_type: Optional[str] = None,
+        content_disposition: Optional[str] = None,
+    ) -> str:
         key, _ = self._make_key(prefix, filename)
+        detected_content_type = content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
         if self._s3_client:
-            self._s3_client.put_object(
-                Bucket=self.settings.s3_bucket_name,
-                Key=key,
-                Body=data,
-            )
+            put_kwargs = {
+                "Bucket": self.settings.s3_bucket_name,
+                "Key": key,
+                "Body": data,
+                "ContentType": detected_content_type,
+            }
+            if content_disposition:
+                put_kwargs["ContentDisposition"] = content_disposition
+            self._s3_client.put_object(**put_kwargs)
             return self._build_remote_url(key)
 
         path = self.base_path / key
@@ -54,9 +68,23 @@ class StorageManager:
         path.write_bytes(data)
         return str(path)
 
-    def save_fileobj(self, file_obj, filename: str, prefix: str = "uploads") -> str:
+    def save_fileobj(
+        self,
+        file_obj,
+        filename: str,
+        prefix: str = "uploads",
+        *,
+        content_type: Optional[str] = None,
+        content_disposition: Optional[str] = None,
+    ) -> str:
         content = file_obj.read()
-        return self.save_bytes(content, filename, prefix=prefix)
+        return self.save_bytes(
+            content,
+            filename,
+            prefix=prefix,
+            content_type=content_type,
+            content_disposition=content_disposition,
+        )
 
     def _build_remote_url(self, key: str) -> str:
         if self.settings.storage_base_url:

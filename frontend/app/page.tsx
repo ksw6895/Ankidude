@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BadgeCheck, Clock3, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
 import { createLecture } from "../lib/api";
+import { loadAdminPassword, saveAdminPassword } from "../lib/admin";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -45,6 +46,7 @@ export default function HomePage() {
   const [professor, setProfessor] = useState("");
   const [slides, setSlides] = useState<File | null>(null);
   const [audio, setAudio] = useState<File | null>(null);
+  const [adminPassword, setAdminPassword] = useState(loadAdminPassword());
   const [loading, setLoading] = useState(false);
 
   const canNext = slides && audio;
@@ -68,7 +70,8 @@ export default function HomePage() {
     formData.append("slides_pdf", slides);
     formData.append("audio_file", audio);
     try {
-      const job = await createLecture(formData);
+      const job = await createLecture(formData, adminPassword);
+      saveAdminPassword(adminPassword);
       push({
         id: job.job_id,
         title,
@@ -234,6 +237,16 @@ export default function HomePage() {
 
             {step === 2 && (
               <div className="grid gap-4 md:grid-cols-3">
+                <div className="md:col-span-3">
+                  <Label className="mb-2 block text-slate-600">관리자 비밀번호</Label>
+                  <Input
+                    type="password"
+                    placeholder="Admin password"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    required
+                  />
+                </div>
                 <div className="md:col-span-3">
                   <Label className="mb-2 block text-slate-600">강의 제목 (선택)</Label>
                   <Input

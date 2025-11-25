@@ -14,6 +14,9 @@ import { useToast } from "../../../components/ui/use-toast";
 import { Flashcard, buildCsv, parseCsvCards } from "../../../lib/csv";
 import { useJobHistory } from "../../../lib/history";
 import { cn } from "../../../lib/utils";
+import { loadAdminPassword, saveAdminPassword } from "../../../lib/admin";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
 
 const statusCopy: Record<LectureStatus, string> = {
   PENDING: "작업 대기열 등록 중...",
@@ -53,6 +56,7 @@ export default function JobPage() {
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loadingCsv, setLoadingCsv] = useState(false);
+  const [adminPassword, setAdminPassword] = useState(loadAdminPassword());
 
   useEffect(() => {
     if (!jobId) return;
@@ -60,7 +64,7 @@ export default function JobPage() {
 
     const load = async () => {
       try {
-        const res = await fetchLecture(jobId);
+        const res = await fetchLecture(jobId, adminPassword);
         if (!cancelled) {
           setData(res);
           if (res.status !== "FAILED") setError(null);
@@ -84,7 +88,7 @@ export default function JobPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [jobId, push]);
+  }, [jobId, push, adminPassword]);
 
   const downloadLink =
     data?.status === "DONE" && data.download_url ? withBase(data.download_url) : undefined;
@@ -133,6 +137,29 @@ export default function JobPage() {
     toast({ title: "CSV가 준비되었습니다", description: "수정 내용을 반영한 CSV를 내려받았습니다." });
   };
 
+  const handleDownloadOriginal = async () => {
+    try {
+      const text = csvText || (downloadLink ? await fetchCsvText(downloadLink, adminPassword) : "");
+      if (!text) {
+        toast({ title: "다운로드를 준비하지 못했습니다", description: "잠시 후 다시 시도해주세요." });
+        return;
+      }
+      const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lecture-${jobId}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({
+        title: "CSV 다운로드 실패",
+        description: (err as Error).message,
+        variant: "destructive"
+      });
+    }
+  };
+
   const eta = useMemo(() => {
     if (!data) return "약 3~6분 소요";
     switch (data.status) {
@@ -157,6 +184,19 @@ export default function JobPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-xs font-semibold text-teal-800 shadow-inner">
           Job ID: {jobId}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <Label className="text-[11px] uppercase tracking-[0.1em] text-slate-500">Admin PW</Label>
+          <Input
+            type="password"
+            className="h-8 w-40 border border-slate-200 bg-white/80 px-2 py-1 text-xs"
+            value={adminPassword}
+            onChange={(e) => {
+              setAdminPassword(e.target.value);
+              saveAdminPassword(e.target.value);
+            }}
+            placeholder="required"
+          />
         </div>
         <Link href="/" className="text-sm text-teal-800 underline-offset-4 hover:underline">
           홈으로 돌아가기
@@ -241,14 +281,10 @@ export default function JobPage() {
             <CardContent className="flex flex-col gap-3 p-5">
               <p className="text-sm font-semibold text-slate-900">다운로드</p>
               <div className="flex flex-wrap gap-2">
-                {downloadLink && (
-                  <Button asChild size="sm" variant="outline">
-                    <a href={downloadLink} download>
-                      <Download className="mr-1 h-4 w-4" />
-                      원본 CSV
-                    </a>
-                  </Button>
-                )}
+                <Button size="sm" variant="outline" onClick={handleDownloadOriginal} disabled={loadingCsv && !csvText}>
+                  <Download className="mr-1 h-4 w-4" />
+                  원본 CSV
+                </Button>
                 <Button size="sm" onClick={handleExport} disabled={!cards.length}>
                   수정 반영 CSV
                 </Button>

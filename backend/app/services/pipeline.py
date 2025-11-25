@@ -22,6 +22,7 @@ def process_lecture_job(
     *,
     language_code: Optional[str] = None,
 ) -> None:
+    temp_paths: list[Path] = []
     lecture = db.get(Lecture, lecture_id)
     if not lecture:
         raise ValueError(f"Lecture {lecture_id} not found")
@@ -33,6 +34,8 @@ def process_lecture_job(
         logger.info("Job %s: STT 단계 시작 (audio=%s)", lecture_id, lecture.audio_url)
 
         audio_path = ensure_local_file(lecture.audio_url)
+        if audio_path.parent.name.startswith("ankidude_"):
+            temp_paths.append(audio_path)
         stt_client = ElevenLabsClient()
         stt_result = stt_client.transcribe_file(str(audio_path), language_code=language_code)
         transcript = Transcript(
@@ -48,6 +51,8 @@ def process_lecture_job(
         logger.info("Job %s: LLM 단계 시작 (slides=%s)", lecture_id, lecture.slides_url)
 
         slides_path = ensure_local_file(lecture.slides_url)
+        if slides_path.parent.name.startswith("ankidude_"):
+            temp_paths.append(slides_path)
         slides = parse_pdf_to_slides(slides_path)
         gemini_client = GeminiClient()
         llm_result = gemini_client.generate_cards(
@@ -68,10 +73,13 @@ def process_lecture_job(
         logger.info("Job %s: CSV 생성 단계", lecture_id)
 
         csv_text = render_csv(llm_result.cards)
+        csv_filename = f"{lecture.id}.csv"
         csv_url = storage.save_bytes(
             csv_text.encode("utf-8"),
-            filename=f"{lecture.id}.csv",
+            filename=csv_filename,
             prefix="exports",
+            content_type="text/csv; charset=utf-8",
+            content_disposition=f'attachment; filename="{csv_filename}"',
         )
         lecture.csv_url = csv_url
         lecture.card_count = len(llm_result.cards)
@@ -88,3 +96,11 @@ def process_lecture_job(
             lecture.error_message = str(exc)
             db.commit()
         raise
+    finally:
+        for path in temp_paths:
+            try:
+                path.unlink(missing_ok=True)
+                if path.parent.name.startswith("ankidude_") and not any(path.parent.iterdir()):
+                    path.parent.rmdir()
+            except Exception:  # best-effort cleanup
+                logger.debug("Failed to clean temp file %s", path, exc_info=True)
