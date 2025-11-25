@@ -44,8 +44,11 @@ async def create_lecture(
     process_lecture_task.delay(lecture.id, language_code="ko")
 
     download_url = None
-    if lecture.csv_url or lecture.status == LectureStatus.DONE:
-        download_url = lecture.csv_url or f"{settings.api_prefix}/lectures/{lecture.id}/csv"
+    if lecture.status == LectureStatus.DONE:
+        if lecture.csv_url and lecture.csv_url.startswith("http"):
+            download_url = lecture.csv_url
+        else:
+            download_url = f"{settings.api_prefix}/lectures/{lecture.id}/csv"
 
     return LectureStatusResponse(
         job_id=lecture.id,
@@ -69,8 +72,11 @@ async def get_lecture(
         raise HTTPException(status_code=404, detail="Job not found")
 
     download_url = None
-    if lecture.csv_url or lecture.status == LectureStatus.DONE:
-        download_url = lecture.csv_url or f"{settings.api_prefix}/lectures/{lecture.id}/csv"
+    if lecture.status == LectureStatus.DONE:
+        if lecture.csv_url and lecture.csv_url.startswith("http"):
+            download_url = lecture.csv_url
+        else:
+            download_url = f"{settings.api_prefix}/lectures/{lecture.id}/csv"
 
     return LectureStatusResponse(
         job_id=lecture.id,
