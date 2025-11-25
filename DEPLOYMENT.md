@@ -84,6 +84,7 @@
 - 메모리/RAM
   - Render 무료/Starter(512MB~1GB)는 대형 PDF+오디오 처리에 불안정할 수 있습니다. **Web/Worker 모두 최소 1GB, 여유 있게 2GB 이상** 플랜을 권장합니다.
   - Celery 워커는 STT 응답(JSON)과 LLM 요청 페이로드를 메모리에 올리므로 슬라이드 페이지 수가 많고 transcript가 길면 RAM 여유가 필요합니다.
+  - 512MB 워커에서 OOM이 나면 `celery -A app.worker.tasks worker -P solo --prefetch-multiplier=1 --loglevel=info`처럼 **solo 모드 + prefetch 1**로 동시성/프로세스 수를 줄이세요(render.yaml 반영됨).
 - CPU/시간
   - STT/LLM 호출이 느리면 Render의 요청 타임아웃을 피하기 위해 비동기 워커(현재 구조)를 유지해야 합니다. 워커/웹 인스턴스 스케일을 높이면 처리 병렬도가 개선됩니다.
 - 네트워크/스토리지

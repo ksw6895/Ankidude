@@ -15,4 +15,4 @@ services:
     buildCommand: |
       cd backend && pip install -r requirements.txt
     startCommand: |
-      cd backend && celery -A app.worker.tasks worker --loglevel=info
+      cd backend && celery -A app.worker.tasks worker -P solo --prefetch-multiplier=1 --loglevel=info
