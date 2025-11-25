@@ -12,12 +12,12 @@ from app.core.config import get_settings
 class StorageManager:
     def __init__(self):
         self.settings = get_settings()
+        self.repo_root = Path(__file__).resolve().parents[3]
         base_raw = Path(self.settings.local_storage_path)
         if base_raw.is_absolute():
             self.base_path = base_raw
         else:
-            repo_root = Path(__file__).resolve().parents[3]
-            self.base_path = (repo_root / base_raw).resolve()
+            self.base_path = (self.repo_root / base_raw).resolve()
         self.base_path.mkdir(parents=True, exist_ok=True)
 
         self._s3_client = None
@@ -69,9 +69,24 @@ class StorageManager:
         if url.startswith("http"):
             return None
         path = Path(url)
+        candidates = []
+
         if path.is_absolute():
-            return path
-        return (self.base_path / path).resolve()
+            candidates.append(path)
+
+        # csv_url이 "storage/exports/..." 같은 형태일 때 중복으로 join되지 않도록 루트 기준으로 우선 탐색
+        if path.parts and path.parts[0] == "storage":
+            candidates.append(self.repo_root / path)
+            candidates.append(self.repo_root / "backend" / path)
+        else:
+            candidates.append(self.base_path / path)
+            candidates.append(self.repo_root / path)
+            candidates.append(self.repo_root / "backend" / path)
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate.resolve()
+        return None
 
 
 def get_storage_manager() -> StorageManager:
