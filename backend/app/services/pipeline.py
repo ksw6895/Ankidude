@@ -27,8 +27,10 @@ def process_lecture_job(
         raise ValueError(f"Lecture {lecture_id} not found")
 
     try:
+        logger.info("Job %s: 시작", lecture_id)
         lecture.status = LectureStatus.RUNNING_STT
         db.commit()
+        logger.info("Job %s: STT 단계 시작 (audio=%s)", lecture_id, lecture.audio_url)
 
         audio_path = ensure_local_file(lecture.audio_url)
         stt_client = ElevenLabsClient()
@@ -43,6 +45,7 @@ def process_lecture_job(
 
         lecture.status = LectureStatus.RUNNING_LLM
         db.commit()
+        logger.info("Job %s: LLM 단계 시작 (slides=%s)", lecture_id, lecture.slides_url)
 
         slides_path = ensure_local_file(lecture.slides_url)
         slides = parse_pdf_to_slides(slides_path)
@@ -62,6 +65,7 @@ def process_lecture_job(
 
         lecture.status = LectureStatus.GENERATING_CSV
         db.commit()
+        logger.info("Job %s: CSV 생성 단계", lecture_id)
 
         csv_text = render_csv(llm_result.cards)
         csv_url = storage.save_bytes(
@@ -74,6 +78,7 @@ def process_lecture_job(
         lecture.status = LectureStatus.DONE
         lecture.error_message = None
         db.commit()
+        logger.info("Job %s: 완료 (cards=%s, csv=%s)", lecture_id, lecture.card_count, csv_url)
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Failed to process lecture %s", lecture_id)
         db.rollback()

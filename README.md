@@ -34,7 +34,7 @@ cp .env.example .env  # 키/URL 채우기
 - Celery 워커:  
   ```bash
   cd backend
-  celery -A app.worker.tasks worker --loglevel=info --app-dir .
+  PYTHONPATH=. celery -A app.worker.tasks worker --loglevel=info
   ```
 
 4) **프론트엔드 (선택)**

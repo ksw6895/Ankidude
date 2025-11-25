@@ -11,6 +11,7 @@ celery_app = Celery(
 )
 
 celery_app.conf.task_routes = {"app.worker.tasks.*": {"queue": "lectures"}}
+celery_app.conf.task_default_queue = "lectures"
 celery_app.conf.task_serializer = "json"
 celery_app.conf.result_serializer = "json"
 celery_app.conf.accept_content = ["json"]
