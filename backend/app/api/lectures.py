@@ -106,7 +106,7 @@ async def download_csv(
     if local_path and local_path.exists():
         return FileResponse(
             str(local_path),
-            media_type="text/csv",
+            media_type="text/csv; charset=utf-8",
             filename=filename,
         )
 
