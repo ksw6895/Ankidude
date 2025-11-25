@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "20.11.19",
+    "@types/papaparse": "^5.5.0",
     "@types/react": "18.2.46",
     "autoprefixer": "^10.4.22",
     "eslint": "8.57.1",

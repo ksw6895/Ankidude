@@ -2,19 +2,19 @@
 
 import * as React from "react";
 
-import type {
-  ToastActionElement,
-  ToastProps,
-} from "./toast";
+import type { ToastActionElement, ToastProps } from "./toast";
 
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 1000;
+
+type ToastVariant = "default" | "success" | "destructive";
 
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  variant?: ToastVariant;
 };
 
 const actionTypes = {
