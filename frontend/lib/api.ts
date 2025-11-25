@@ -30,6 +30,9 @@ export type LectureStatusResponse = {
   card_count?: number | null;
   download_url?: string | null;
   error_message?: string | null;
+  title?: string | null;
+  subject?: string | null;
+  professor?: string | null;
 };
 
 export async function createLecture(formData: FormData): Promise<LectureStatusResponse> {
@@ -53,4 +56,13 @@ export async function fetchLecture(jobId: string): Promise<LectureStatusResponse
     throw new Error(text || "Failed to fetch job");
   }
   return res.json();
+}
+
+export async function fetchCsvText(downloadUrl: string): Promise<string> {
+  const res = await fetch(withBase(downloadUrl));
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Failed to fetch CSV");
+  }
+  return res.text();
 }

@@ -1,185 +1,57 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.woff2")
+    format("woff2-variations");
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  --bg: #f5f7fb;
-  --surface: #ffffff;
-  --panel: #eef2ff;
-  --accent: #0ea5a0;
-  --accent-strong: #0b7f78;
-  --text: #0f172a;
-  --muted: #475569;
-  --border: #e2e8f0;
-  --shadow: 0 24px 60px -35px rgba(15, 23, 42, 0.45);
+  color: #0f172a;
+  background-color: #f4f5f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "liga" 1, "calt" 1, "ss01" 1;
 }
 
 * {
-  box-sizing: border-box;
+  @apply antialiased;
 }
 
 body {
-  margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at 20% 20%, #f0fbf8, #f5f7fb 45%),
-    radial-gradient(circle at 80% 0%, #e8f1ff, #f5f7fb 40%);
-  font-family: "Space Grotesk", "Helvetica Neue", sans-serif;
-  color: var(--text);
-  line-height: 1.6;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(20, 156, 144, 0.12), transparent 28%),
+    radial-gradient(circle at 80% 10%, rgba(100, 116, 139, 0.12), transparent 30%),
+    radial-gradient(circle at 40% 70%, rgba(15, 118, 110, 0.08), transparent 25%),
+    linear-gradient(120deg, #f7f7f3, #eef2f7, #f9fafb);
+  font-family: "Pretendard Variable", "Space Grotesk", system-ui, -apple-system, sans-serif;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.mesh {
+  background:
+    radial-gradient(80% 60% at 20% 20%, rgba(20, 156, 144, 0.25), transparent 40%),
+    radial-gradient(60% 60% at 80% 10%, rgba(15, 118, 110, 0.2), transparent 35%),
+    radial-gradient(80% 60% at 40% 70%, rgba(100, 116, 139, 0.18), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(244, 245, 248, 0.94));
 }
 
-main {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 40px 20px 64px;
+.glass {
+  @apply border border-white/50 bg-white/60 backdrop-blur-xl shadow-glass;
 }
 
-.hero {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 28px;
-  align-items: start;
+.bento {
+  @apply rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-card;
 }
 
-@media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-}
-
-.panel {
-  background: linear-gradient(135deg, var(--surface), #f9fafb);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 24px;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: rgba(14, 165, 160, 0.1);
-  color: var(--accent-strong);
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-
-.title {
-  font-size: 38px;
-  font-weight: 700;
-  margin: 12px 0 8px;
-}
-
-.subtitle {
-  color: var(--muted);
-  margin: 0 0 18px;
-  max-width: 640px;
-}
-
-.input-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
-input[type="text"],
-input[type="file"] {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  font-size: 15px;
-}
-
-input[type="file"] {
-  padding: 12px;
-}
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: linear-gradient(120deg, var(--accent), #12c2b7);
-  color: #0f172a;
-  font-weight: 700;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 12px 30px -18px rgba(14, 165, 160, 0.9);
-}
-
-.button:hover {
-  transform: translateY(-1px);
-}
-
-.button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: #0ea5a00f;
-  border: 1px dashed rgba(14, 165, 160, 0.4);
-  font-weight: 600;
-}
-
-.card {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  background: #fff;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.progress {
-  width: 100%;
-  background: #e2e8f0;
-  height: 8px;
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
-  width: 20%;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: translateX(-30%);
-  }
-  50% {
-    transform: translateX(40%);
-  }
-  100% {
-    transform: translateX(110%);
-  }
+.text-gradient {
+  background: linear-gradient(120deg, #0f766e, #149c90, #0f3f3b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
