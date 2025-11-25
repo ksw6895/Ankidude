@@ -103,7 +103,7 @@ export default function JobPage() {
     if (!downloadLink) return;
     setLoadingCsv(true);
     try {
-      const text = await fetchCsvText(downloadLink);
+      const text = await fetchCsvText(downloadLink, adminPassword);
       setCsvText(text);
       const parsed = parseCsvCards(text);
       setCards(parsed);
@@ -117,7 +117,7 @@ export default function JobPage() {
     } finally {
       setLoadingCsv(false);
     }
-  }, [downloadLink, toast]);
+  }, [adminPassword, downloadLink, toast]);
 
   useEffect(() => {
     if (data?.status === "DONE" && downloadLink && cards.length === 0 && !loadingCsv) {
