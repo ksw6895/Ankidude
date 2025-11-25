@@ -36,9 +36,11 @@ export type LectureStatusResponse = {
   professor?: string | null;
 };
 
-const withAdminHeader = (adminPassword?: string) => {
+const withAdminHeader = (adminPassword?: string): Record<string, string> => {
   const value = adminPassword || defaultAdminPassword;
-  return value ? { "X-Admin-Password": value } : {};
+  const headers: Record<string, string> = {};
+  if (value) headers["X-Admin-Password"] = value;
+  return headers;
 };
 
 export async function createLecture(
