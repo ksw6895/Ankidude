@@ -1,5 +1,9 @@
+import os
+from urllib.parse import urlparse
+
+import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_settings_dep, get_storage_dep, require_admin_password
@@ -44,12 +48,9 @@ async def create_lecture(
 
     process_lecture_task.delay(lecture.id, language_code="ko")
 
-    download_url = None
-    if lecture.status == LectureStatus.DONE:
-        if lecture.csv_url and lecture.csv_url.startswith("http"):
-            download_url = lecture.csv_url
-        else:
-            download_url = f"{settings.api_prefix}/lectures/{lecture.id}/csv"
+    download_url = (
+        f"{settings.api_prefix}/lectures/{lecture.id}/csv" if lecture.status == LectureStatus.DONE else None
+    )
 
     return LectureStatusResponse(
         job_id=lecture.id,
@@ -73,12 +74,9 @@ async def get_lecture(
     if not lecture:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    download_url = None
-    if lecture.status == LectureStatus.DONE:
-        if lecture.csv_url and lecture.csv_url.startswith("http"):
-            download_url = lecture.csv_url
-        else:
-            download_url = f"{settings.api_prefix}/lectures/{lecture.id}/csv"
+    download_url = (
+        f"{settings.api_prefix}/lectures/{lecture.id}/csv" if lecture.status == LectureStatus.DONE else None
+    )
 
     return LectureStatusResponse(
         job_id=lecture.id,
@@ -94,6 +92,7 @@ async def get_lecture(
 @router.get("/lectures/{job_id}/csv")
 async def download_csv(
     job_id: str,
+    _: bool = Depends(require_admin_password),
     db: Session = Depends(get_db),
     storage: StorageManager = Depends(get_storage_dep),
 ):
@@ -113,6 +112,19 @@ async def download_csv(
         )
 
     if lecture.csv_url.startswith("http"):
-        return RedirectResponse(url=lecture.csv_url, status_code=302)
+        parsed = urlparse(lecture.csv_url)
+        inferred_name = os.path.basename(parsed.path) or filename
+        try:
+            resp = httpx.get(lecture.csv_url, timeout=600, follow_redirects=True)
+            resp.raise_for_status()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Failed to fetch CSV from remote storage") from exc
+
+        content_type = resp.headers.get("content-type") or "text/csv; charset=utf-8"
+        return Response(
+            content=resp.content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{inferred_name}"'},
+        )
 
     raise HTTPException(status_code=404, detail="CSV file not found")
