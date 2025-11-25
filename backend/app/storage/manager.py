@@ -12,7 +12,12 @@ from app.core.config import get_settings
 class StorageManager:
     def __init__(self):
         self.settings = get_settings()
-        self.base_path = Path(self.settings.local_storage_path)
+        base_raw = Path(self.settings.local_storage_path)
+        if base_raw.is_absolute():
+            self.base_path = base_raw
+        else:
+            repo_root = Path(__file__).resolve().parents[3]
+            self.base_path = (repo_root / base_raw).resolve()
         self.base_path.mkdir(parents=True, exist_ok=True)
 
         self._s3_client = None
@@ -63,7 +68,10 @@ class StorageManager:
     def resolve_local_path(self, url: str) -> Optional[Path]:
         if url.startswith("http"):
             return None
-        return Path(url)
+        path = Path(url)
+        if path.is_absolute():
+            return path
+        return (self.base_path / path).resolve()
 
 
 def get_storage_manager() -> StorageManager:
