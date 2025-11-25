@@ -41,7 +41,7 @@ cp .env.example .env  # 키/URL 채우기
 ```bash
 cd frontend
 npm install
-export NEXT_PUBLIC_API_BASE_URL="http://localhost:8000/api"
+export NEXT_PUBLIC_API_BASE_URL="http://localhost:8000"
 npm run dev   # http://localhost:3000
 ```
 

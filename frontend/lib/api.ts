@@ -2,8 +2,16 @@ const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export const withBase = (path: string) => {
   if (path.startsWith("http")) return path;
-  if (!path.startsWith("/")) return `${baseUrl}/${path}`;
-  return `${baseUrl}${path}`;
+
+  const trimmedBase = baseUrl.replace(/\/+$/, "");
+  const trimmedPath = path.startsWith("/") ? path : `/${path}`;
+
+  // 방어: base가 이미 /api로 끝나고 path도 /api로 시작하면 중복 제거
+  if (trimmedBase.endsWith("/api") && trimmedPath.startsWith("/api/")) {
+    return `${trimmedBase.slice(0, -4)}${trimmedPath}`;
+  }
+
+  return `${trimmedBase}${trimmedPath}`;
 };
 
 export type LectureStatus =
