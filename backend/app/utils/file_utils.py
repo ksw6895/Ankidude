@@ -20,7 +20,8 @@ def ensure_local_file(url: str) -> Path:
         with httpx.stream("GET", url, timeout=600) as response:
             response.raise_for_status()
             with open(dest, "wb") as f:
-                shutil.copyfileobj(response.raw, f)
+                for chunk in response.iter_bytes():
+                    f.write(chunk)
         return dest
 
     raise FileNotFoundError(f"Cannot resolve local file from {url}")
