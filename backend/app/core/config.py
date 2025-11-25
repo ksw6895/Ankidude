@@ -1,7 +1,8 @@
 from functools import lru_cache
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
 from typing import List, Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
     celery_broker_url: Optional[str] = None
     celery_result_backend: Optional[str] = None
 
-    allowed_origins: List[str] = []
+    allowed_origins_raw: str = Field(default="", alias="ALLOWED_ORIGINS")
 
     gemini_api_key: Optional[str] = None
     gemini_model_id: str = "gemini-3-pro-preview"
@@ -29,14 +30,19 @@ class Settings(BaseSettings):
 
     environment: str = "dev"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def _split_origins(cls, value):
-        if isinstance(value, str):
-            return [v.strip() for v in value.split(",") if v.strip()]
-        return value
+    @property
+    def allowed_origins(self) -> List[str]:
+        raw = self.allowed_origins_raw.strip()
+        if not raw:
+            return []
+        return [v.strip() for v in raw.split(",") if v.strip()]
 
 
 @lru_cache
