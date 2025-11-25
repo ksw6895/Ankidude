@@ -1,6 +1,6 @@
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-const withBase = (path: string) => {
+export const withBase = (path: string) => {
   if (path.startsWith("http")) return path;
   if (!path.startsWith("/")) return `${baseUrl}/${path}`;
   return `${baseUrl}${path}`;

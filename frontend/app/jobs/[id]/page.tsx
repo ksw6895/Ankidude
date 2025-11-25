@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { fetchLecture, LectureStatusResponse } from "../../../lib/api";
+import { fetchLecture, LectureStatusResponse, withBase } from "../../../lib/api";
 
 const statusLabel: Record<string, string> = {
   PENDING: "대기 중",
@@ -45,6 +45,8 @@ export default function JobPage() {
   }, [jobId]);
 
   const readyForDownload = data?.status === "DONE" && data.download_url;
+  const downloadLink =
+    readyForDownload && data?.download_url ? withBase(data.download_url) : undefined;
   const statusText = data ? statusLabel[data.status] : "불러오는 중…";
 
   return (
@@ -80,7 +82,7 @@ export default function JobPage() {
             <p className="muted" style={{ margin: "6px 0 12px" }}>
               Anki에서 구분자를 세미콜론으로 선택하면 바로 import됩니다.
             </p>
-            <a className="button" href={data.download_url ?? "#"} download>
+            <a className="button" href={downloadLink ?? "#"} download>
               CSV 다운로드
             </a>
           </div>
