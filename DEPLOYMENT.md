@@ -95,6 +95,12 @@
 - CORS 에러: 백엔드 `ALLOWED_ORIGINS`에 Vercel 도메인 추가 후 재배포.  
 - 인코딩 깨짐: CSV는 `UTF-8`로 제공, 뷰어를 UTF-8로 설정. Anki Import 시 구분자 Semicolon 선택.
 
+### 4-1. gunicorn 미설치 오류 대처
+- Render에서 `gunicorn: command not found`가 뜨면, Build Command가 잘못되어 패키지가 설치되지 않은 경우가 많습니다.
+- 해결법:
+  - Web/Worker 모두 Build Command를 `pip install -r requirements.txt`(Root를 `backend`로 지정)로 설정했는지 확인.
+  - 또는 repo 루트에 있는 `render.yaml`를 사용해 배포하면 자동으로 `cd backend && pip install -r requirements.txt` 후 실행하도록 설정됩니다.
+
 ## 5. 재배포/업데이트
 - 코드 변경 후 Git push → Render/Vercel가 자동 빌드/배포.  
 - 긴 작업 대비: Render 유료 플랜으로 타임아웃/스펙 상향, Celery `task_time_limit` 조정은 `app/core/celery_app.py`에서 가능.

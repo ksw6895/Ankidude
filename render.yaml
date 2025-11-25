@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ankidude-api
+    env: python
+    plan: starter  # 필요 시 starter 이상으로 조정
+    buildCommand: |
+      cd backend && pip install -r requirements.txt
+    startCommand: |
+      cd backend && gunicorn -k uvicorn.workers.UvicornWorker app.main:app
+    healthCheckPath: /health
+  - type: worker
+    name: ankidude-worker
+    env: python
+    plan: starter  # 필요 시 starter 이상으로 조정
+    buildCommand: |
+      cd backend && pip install -r requirements.txt
+    startCommand: |
+      cd backend && celery -A app.worker.tasks worker --loglevel=info
