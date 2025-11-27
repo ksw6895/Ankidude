@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="mesh min-h-screen text-slate-900">
-        <div className="fixed inset-0 -z-10 bg-[radial-gradient(120%_120%_at_10%_20%,rgba(20,156,144,0.12),transparent_40%),radial-gradient(100%_80%_at_80%_0%,rgba(100,116,139,0.12),transparent_42%),radial-gradient(90%_70%_at_40%_70%,rgba(15,118,110,0.08),transparent_40%),linear-gradient(145deg,#f7f7f3,#eef2f7,#f9fafb)]" />
+      <body className="min-h-screen text-slate-900">
+        <div className="bg-noise" />
         <Navbar />
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-10 md:px-8">{children}</main>
+        <main className="mx-auto max-w-5xl px-6 pb-20 pt-16 md:pt-24">{children}</main>
         <Toaster />
       </body>
     </html>
