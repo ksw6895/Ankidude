@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import Dict, List, Optional
@@ -233,8 +234,24 @@ class GeminiClient:
             )
             raise GeminiStructuredOutputError("Gemini response text is empty")
 
+        def _salvage_json(text: str) -> LectureNotesOutput:
+            try:
+                return LectureNotesOutput.model_validate_json(text)
+            except ValidationError:
+                # best-effort salvage: trim to first/last brace
+                first = text.find("{")
+                last = text.rfind("}")
+                if first != -1 and last != -1 and last > first:
+                    trimmed = text[first : last + 1]
+                    try:
+                        obj = json.loads(trimmed)
+                        return LectureNotesOutput.model_validate(obj)
+                    except Exception:
+                        pass
+                raise
+
         try:
-            parsed = LectureNotesOutput.model_validate_json(response.text)
+            parsed = _salvage_json(response.text)
         except ValidationError as exc:
             logger.error(
                 "Failed to validate structured Gemini notes response",
