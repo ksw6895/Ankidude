@@ -24,7 +24,7 @@ class Lecture(Base):
     subject = Column(String, nullable=True)
     professor = Column(String, nullable=True)
     slides_url = Column(String, nullable=False)
-    audio_url = Column(String, nullable=False)
+    audio_url = Column(String, nullable=True)
     status = Column(Enum(LectureStatus), default=LectureStatus.PENDING, nullable=False)
     card_count = Column(Integer, nullable=True)
     csv_url = Column(String, nullable=True)

@@ -19,7 +19,7 @@ router = APIRouter()
 @router.post("/lectures", response_model=LectureStatusResponse)
 async def create_lecture(
     slides_pdf: UploadFile = File(...),
-    audio_file: UploadFile = File(...),
+    audio_file: UploadFile | None = File(None),
     title: str | None = Form(None),
     subject: str | None = Form(None),
     professor: str | None = Form(None),
@@ -28,11 +28,13 @@ async def create_lecture(
     storage: StorageManager = Depends(get_storage_dep),
     settings: Settings = Depends(get_settings_dep),
 ):
-    if not slides_pdf.filename or not audio_file.filename:
-        raise HTTPException(status_code=400, detail="slides_pdf and audio_file are required")
+    if not slides_pdf.filename:
+        raise HTTPException(status_code=400, detail="slides_pdf is required")
 
     slides_url = storage.save_fileobj(slides_pdf.file, slides_pdf.filename, prefix="slides")
-    audio_url = storage.save_fileobj(audio_file.file, audio_file.filename, prefix="audio")
+    audio_url = None
+    if audio_file and audio_file.filename:
+        audio_url = storage.save_fileobj(audio_file.file, audio_file.filename, prefix="audio")
 
     lecture = Lecture(
         title=title,

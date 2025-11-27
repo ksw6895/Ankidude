@@ -6,6 +6,7 @@ __pycache__/
 venv/
 *.db
 backend/storage/
+storage/
 frontend/.env.local
 node_modules/
 frontend/.next/

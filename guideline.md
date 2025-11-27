@@ -12,8 +12,8 @@
 의대 강의 환경(슬라이드 + 교수 발화)을 전제로, 다음을 만족하는 시스템을 구현한다.
 
 - 입력:
-  - 강의 **오디오 파일** (mp3, m4a, wav 등, ~1시간 내외)
-  - 강의 **슬라이드 PDF** (보통 PowerPoint export)
+  - 강의 **슬라이드 PDF** (보통 PowerPoint export) — 필수
+  - 강의 **오디오 파일** (mp3, m4a, wav 등, ~1시간 내외) — 선택, 있으면 STT 보정
 - 처리:
   - **ElevenLabs STT**로 고정밀 transcript 생성  
     - 기본 배치 STT: **Scribe v1**, `POST /v1/speech-to-text` 사용 :contentReference[oaicite:0]{index=0}  
@@ -129,12 +129,12 @@
    - Worker에게 작업 큐 삽입
 
 3. **Worker (Celery/RQ on Render – Background Worker)**
-   - Job 큐에서 작업을 가져와 순차 처리:
-     1. ElevenLabs STT 호출
-     2. PDF 파싱
-     3. Gemini 2.5 Flash Structured Output 프롬프트 구성/호출
-     4. LLM 출력 검증/정제
-     5. CSV 생성 및 Object Storage에 저장
+    - Job 큐에서 작업을 가져와 순차 처리:
+      1. (오디오가 있으면) ElevenLabs STT 호출
+      2. PDF 파싱
+      3. Gemini 2.5 Flash Structured Output 프롬프트 구성/호출
+      4. LLM 출력 검증/정제
+      5. CSV 생성 및 Object Storage에 저장
    - Job 상태를 DB에 업데이트
 
 4. **Storage (S3 호환)**
@@ -152,7 +152,7 @@
 1. 사용자가 PDF + 오디오 업로드 → `POST /api/lectures`
 2. API 서버가 파일을 S3에 저장하고, Job 레코드 생성 (`status=PENDING`)
 3. Worker가 Job을 가져와:
-   - `status=RUNNING_STT` → ElevenLabs STT 호출, transcript 저장
+   - 오디오가 있으면 `status=RUNNING_STT` → ElevenLabs STT 호출, transcript 저장
    - `status=RUNNING_LLM` → Gemini 2.5 Flash에 슬라이드 + transcript를 전달, 카드 JSON 생성
    - `status=GENERATING_CSV` → 카드 JSON → CSV 텍스트 파일 생성, S3에 저장
    - 완료 시 `status=DONE`, 카드 수, CSV URL 기록

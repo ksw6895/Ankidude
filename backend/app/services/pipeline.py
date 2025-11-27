@@ -29,26 +29,41 @@ def process_lecture_job(
 
     try:
         logger.info("Job %s: 시작", lecture_id)
-        lecture.status = LectureStatus.RUNNING_STT
-        db.commit()
-        logger.info("Job %s: STT 단계 시작 (audio=%s)", lecture_id, lecture.audio_url)
+        transcript = None
+        if lecture.audio_url:
+            lecture.status = LectureStatus.RUNNING_STT
+            db.commit()
+            logger.info("Job %s: STT 단계 시작 (audio=%s)", lecture_id, lecture.audio_url)
 
-        audio_path = ensure_local_file(lecture.audio_url)
-        if audio_path.parent.name.startswith("ankidude_"):
-            temp_paths.append(audio_path)
-        stt_client = ElevenLabsClient()
-        stt_result = stt_client.transcribe_file(str(audio_path), language_code=language_code)
-        transcript = Transcript(
-            lecture_id=lecture.id,
-            raw_text=stt_result.get("text", ""),
-            words_json=json.dumps(stt_result.get("words", [])),
-        )
-        db.add(transcript)
-        db.commit()
+            audio_path = ensure_local_file(lecture.audio_url)
+            if audio_path.parent.name.startswith("ankidude_"):
+                temp_paths.append(audio_path)
+            stt_client = ElevenLabsClient()
+            stt_result = stt_client.transcribe_file(str(audio_path), language_code=language_code)
+            transcript = Transcript(
+                lecture_id=lecture.id,
+                raw_text=stt_result.get("text", ""),
+                words_json=json.dumps(stt_result.get("words", [])),
+            )
+            db.add(transcript)
+            db.commit()
+        else:
+            transcript = Transcript(
+                lecture_id=lecture.id,
+                raw_text="",
+                words_json=json.dumps([]),
+            )
+            db.add(transcript)
+            db.commit()
 
         lecture.status = LectureStatus.RUNNING_LLM
         db.commit()
-        logger.info("Job %s: LLM 단계 시작 (slides=%s)", lecture_id, lecture.slides_url)
+        logger.info(
+            "Job %s: LLM 단계 시작 (slides=%s, audio=%s)",
+            lecture_id,
+            lecture.slides_url,
+            "present" if lecture.audio_url else "absent",
+        )
 
         slides_path = ensure_local_file(lecture.slides_url)
         if slides_path.parent.name.startswith("ankidude_"):

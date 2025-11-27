@@ -17,8 +17,8 @@ import { cn } from "../lib/utils";
 
 const features = [
   {
-    title: "Medical-grade STT",
-    desc: "ElevenLabs Scribe v1로 의료 용어를 놓치지 않습니다.",
+    title: "Medical-grade STT (선택)",
+    desc: "오디오를 주면 ElevenLabs Scribe v1로 의료 용어를 놓치지 않습니다.",
     icon: <ShieldCheck className="h-5 w-5 text-teal-700" />
   },
   {
@@ -49,14 +49,14 @@ export default function HomePage() {
   const [adminPassword, setAdminPassword] = useState(loadAdminPassword());
   const [loading, setLoading] = useState(false);
 
-  const canNext = slides && audio;
-  const canSubmit = canNext && !loading;
+  const canNext = !!slides;
+  const canSubmit = !!slides && !loading;
 
   const handleSubmit = async () => {
-    if (!slides || !audio) {
+    if (!slides) {
       toast({
-        title: "파일이 필요합니다",
-        description: "슬라이드 PDF와 오디오 파일을 모두 업로드해주세요.",
+        title: "슬라이드 PDF가 필요합니다",
+        description: "슬라이드만으로도 카드 생성이 가능합니다.",
         variant: "destructive"
       });
       setStep(1);
@@ -68,7 +68,9 @@ export default function HomePage() {
     formData.append("subject", subject);
     formData.append("professor", professor);
     formData.append("slides_pdf", slides);
-    formData.append("audio_file", audio);
+    if (audio) {
+      formData.append("audio_file", audio);
+    }
     try {
       const job = await createLecture(formData, adminPassword);
       saveAdminPassword(adminPassword);
@@ -105,14 +107,15 @@ export default function HomePage() {
       <section className="grid items-center gap-8 rounded-[32px] border border-white/60 bg-white/70 p-6 shadow-glass backdrop-blur-xl md:grid-cols-[1.1fr_0.9fr] md:p-10">
         <div className="space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-teal-800 shadow-inner">
-            <Sparkles className="h-4 w-4" /> 슬라이드 + 오디오 → Anki CSV
+            <Sparkles className="h-4 w-4" /> 슬라이드(+오디오) → Anki CSV
           </div>
           <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
-            강의 녹음만 올리세요. <span className="text-gradient">나머지는 AI가 합니다.</span>
+            슬라이드만 올려도 카드 완성.{" "}
+            <span className="text-gradient">녹음까지 주면 더 정확해집니다.</span>
           </h1>
           <p className="max-w-2xl text-lg text-slate-600">
-            ElevenLabs STT와 Gemini 3 Pro Preview가 슬라이드/녹음을 교차 분석해 의료 학습에 최적화된
-            Anki 카드를 생성합니다. 업로드 → 대기 → 다운로드, 단 3스텝.
+            슬라이드만으로도 카드 생성이 가능하며, 오디오를 함께 올리면 ElevenLabs STT와 Gemini 3 Pro Preview가
+            교차 분석해 더 높은 품질을 제공합니다. 업로드 → 대기 → 다운로드, 단 3스텝.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Button size="lg" asChild>
@@ -138,7 +141,7 @@ export default function HomePage() {
           <CardHeader className="relative z-10">
             <CardTitle className="text-xl text-slate-900">처리 과정 미리보기</CardTitle>
             <p className="text-sm text-slate-500">
-              대기열 등록 → 음성 → 텍스트 → 슬라이드 분석 → Anki CSV 생성 과정을 실시간으로 보여줍니다.
+              대기열 등록 → 업로드 → (오디오 시 STT) → 슬라이드 분석 → Anki CSV 생성 과정을 실시간으로 보여줍니다.
             </p>
           </CardHeader>
           <CardContent className="relative z-10 space-y-4">
@@ -159,10 +162,16 @@ export default function HomePage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    {["대기열 등록", "업로드", "음성 → 텍스트", "슬라이드 분석", "CSV 준비"][i - 1]}
+                    {["대기열 등록", "업로드", "음성 → 텍스트(선택)", "슬라이드 분석", "CSV 준비"][i - 1]}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {["서버에 작업을 예약합니다.", "슬라이드/오디오를 안전하게 전송합니다.", "ElevenLabs STT로 전사합니다.", "Gemini가 핵심만 추출합니다.", "Anki 호환 CSV로 패킹합니다."][i - 1]}
+                    {[
+                      "서버에 작업을 예약합니다.",
+                      "슬라이드를 필수로, 오디오는 선택으로 전송합니다.",
+                      "오디오가 있으면 ElevenLabs STT로 전사합니다.",
+                      "Gemini가 핵심만 추출합니다.",
+                      "Anki 호환 CSV로 패킹합니다."
+                    ][i - 1]}
                   </p>
                 </div>
               </div>
@@ -177,7 +186,8 @@ export default function HomePage() {
             <p className="text-sm font-semibold text-teal-800">Step-by-step Upload</p>
             <h2 className="text-3xl font-bold text-slate-900">파일 업로드 → 메타데이터 → 생성</h2>
             <p className="text-slate-600">
-              드래그 앤 드롭으로 PDF/오디오를 올리고, 필요하면 과목/교수명을 더하세요. 이중 제출 방지를 위해 버튼 상태가 동적으로 바뀝니다.
+              PDF는 필수, 오디오는 선택입니다. 슬라이드만으로도 생성되며, 오디오를 주면 STT로 보정해 더 정확합니다. 이중 제출
+              방지를 위해 버튼 상태가 동적으로 바뀝니다.
             </p>
           </div>
           <div className="hidden items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-sm text-slate-600 shadow-inner md:flex">
@@ -225,8 +235,8 @@ export default function HomePage() {
                   onRemove={() => setSlides(null)}
                 />
                 <FileUploadZone
-                  label="오디오 파일"
-                  description="mp3/m4a/wav 등 대부분의 오디오를 지원합니다."
+                  label="오디오 파일 (선택)"
+                  description="mp3/m4a/wav 등 대부분의 오디오를 지원합니다. 없으면 슬라이드만으로 진행합니다."
                   accept={{ "audio/*": [] }}
                   file={audio}
                   onFile={setAudio}
@@ -274,7 +284,8 @@ export default function HomePage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-500">
-                PDF+오디오가 준비되면 다음 단계가 활성화됩니다. 업로드 후에는 상태 페이지에서 진행률을 실시간으로 볼 수 있습니다.
+                PDF가 준비되면 다음 단계가 활성화됩니다. 오디오는 선택이며, 업로드 후에는 상태 페이지에서 진행률을 실시간으로 볼
+                수 있습니다.
               </p>
               <div className="flex items-center gap-2">
                 {step === 2 && (
