@@ -66,7 +66,7 @@ export function CardPreview({ cards, activeIndex, onChangeIndex, onEdit, onRemov
         <div className="flex items-center justify-between rounded-2xl border border-white/40 bg-white/60 p-2 shadow-sm">
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             className="h-10 w-10 rounded-xl"
             disabled={activeIndex === 0}
             onClick={() => {
@@ -81,7 +81,7 @@ export function CardPreview({ cards, activeIndex, onChangeIndex, onEdit, onRemov
           </span>
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             className="h-10 w-10 rounded-xl"
             disabled={activeIndex === cards.length - 1}
             onClick={() => {
