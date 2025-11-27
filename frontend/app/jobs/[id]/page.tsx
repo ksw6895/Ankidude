@@ -99,14 +99,15 @@ export default function JobPage() {
   const generateCards = data?.generate_cards ?? true;
   const generateNotes = data?.generate_notes ?? false;
   const hasAudio = data?.has_audio ?? false;
-  const cardDone = generateCards && !!csvDownloadLink;
-  const noteDone = generateNotes && !!data?.note_pdf_url;
 
   const csvDownloadPath = data?.csv_download_url || data?.download_url;
   const csvDownloadLink =
     data?.status === "DONE" && csvDownloadPath ? withBase(csvDownloadPath) : undefined;
   const pdfDownloadLink =
     data?.status === "DONE" && data?.note_pdf_url ? withBase(data.note_pdf_url) : undefined;
+
+  const cardDone = generateCards && !!csvDownloadLink;
+  const noteDone = generateNotes && !!data?.note_pdf_url;
 
   const loadCsv = useCallback(async () => {
     if (!csvDownloadLink) return null;
