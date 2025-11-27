@@ -80,7 +80,6 @@ class PdfNoteService:
                 note_rect,
                 content,
                 fontsize=size,
-                fontname="helv",
                 align=0,
             )
             return remaining, writer
