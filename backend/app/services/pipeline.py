@@ -1,5 +1,6 @@
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 
@@ -73,29 +74,75 @@ def process_lecture_job(
             db.commit()
 
         gemini_client = GeminiClient()
+        meta = {
+            "title": lecture.title,
+            "subject": lecture.subject,
+            "professor": lecture.professor,
+        }
 
-        # Anki 카드 생성 (옵션)
-        cards_result = None
-        if getattr(lecture, "generate_cards", True):
-            lecture.status = LectureStatus.RUNNING_ANKI
-            lecture.current_step = "ANKI_GEN"
-            db.commit()
-            logger.info("Job %s: Anki 카드 생성 단계", lecture_id)
+        # 1) Transcript 정제
+        lecture.status = (
+            LectureStatus.RUNNING_ANKI
+            if getattr(lecture, "generate_cards", True)
+            else LectureStatus.RUNNING_NOTES
+            if getattr(lecture, "generate_notes", False)
+            else LectureStatus.RUNNING_LLM
+        )
+        lecture.current_step = "CLEAN_TRANSCRIPT"
+        db.commit()
+        logger.info("Job %s: Gemini 정제 단계 시작", lecture_id)
 
-            cards_result = gemini_client.generate_cards(
-                slides,
-                transcript.raw_text or "",
-                meta={
-                    "title": lecture.title,
-                    "subject": lecture.subject,
-                    "professor": lecture.professor,
-                },
-            )
-            transcript.cleaned_text = cards_result.cleaned_transcript
-            db.add(transcript)
-            db.commit()
+        cleaned_text = gemini_client.clean_transcript(slides, transcript.raw_text or "", meta=meta)
+        transcript.cleaned_text = cleaned_text or transcript.raw_text or ""
+        db.add(transcript)
+        db.commit()
+
+        cleaned_for_use = transcript.cleaned_text or transcript.raw_text or ""
+
+        # 2) 카드/노트 병렬 LLM 호출
+        futures = {}
+        results = {}
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            if getattr(lecture, "generate_cards", True):
+                lecture.status = LectureStatus.RUNNING_ANKI
+                lecture.current_step = "ANKI_GEN"
+                db.commit()
+                logger.info("Job %s: Anki 카드 Gemini 호출 시작", lecture_id)
+
+                futures["cards"] = executor.submit(
+                    GeminiClient().generate_cards,
+                    slides,
+                    cleaned_for_use,
+                    meta,
+                )
+
+            if getattr(lecture, "generate_notes", False):
+                if not getattr(lecture, "generate_cards", True):
+                    lecture.status = LectureStatus.RUNNING_NOTES
+                    lecture.current_step = "NOTE_GEN"
+                    db.commit()
+                logger.info("Job %s: 노트 Gemini 호출 시작", lecture_id)
+                futures["notes"] = executor.submit(
+                    GeminiClient().generate_lecture_notes,
+                    slides,
+                    cleaned_for_use,
+                    meta,
+                )
+
+            for key, future in futures.items():
+                results[key] = future.result()
+
+        # 3) 카드 후처리
+        if "cards" in results:
+            cards_result = results["cards"]
+            if cards_result.cleaned_transcript:
+                transcript.cleaned_text = cards_result.cleaned_transcript
+                db.add(transcript)
+                db.commit()
 
             lecture.status = LectureStatus.GENERATING_CSV
+            lecture.current_step = "GENERATING_CSV"
             db.commit()
             csv_text = render_csv(cards_result.cards)
             csv_filename = f"{lecture.id}.csv"
@@ -113,22 +160,14 @@ def process_lecture_job(
             lecture.card_count = 0
             lecture.csv_url = None
 
-        # 강의 노트 생성 (옵션)
-        if getattr(lecture, "generate_notes", False):
+        # 4) 노트 후처리
+        if "notes" in results:
+            # 노트 생성 시작 상태 업데이트
             lecture.status = LectureStatus.RUNNING_NOTES
             lecture.current_step = "NOTE_GEN"
             db.commit()
-            logger.info("Job %s: PDF 노트 생성 단계", lecture_id)
 
-            notes = gemini_client.generate_lecture_notes(
-                slides,
-                transcript.cleaned_text or transcript.raw_text or "",
-                meta={
-                    "title": lecture.title,
-                    "subject": lecture.subject,
-                    "professor": lecture.professor,
-                },
-            )
+            notes = results["notes"]
             pdf_service = PdfNoteService(storage)
             pdf_url, rendered_pages = pdf_service.render_notes_pdf(
                 lecture.slides_url,

@@ -66,35 +66,44 @@ class PdfNoteService:
         )
 
         text = self._markdown_to_text(markdown_text)
+        # 안전장치: 지나치게 긴 텍스트는 먼저 자른다.
+        if len(text) > 1200:
+            text = text[:1200]
+
         font_size = 11
         min_font = 8
-        written = -1
-        while font_size >= min_font:
-            written = page.insert_textbox(
+        leftover: str | None = None
+
+        def try_fill(size: int, content: str) -> tuple[str | None, fitz.TextWriter]:
+            writer = fitz.TextWriter(page.rect)
+            remaining = writer.fill_textbox(
                 note_rect,
-                text,
-                fontsize=font_size,
+                content,
+                fontsize=size,
                 fontname="helv",
                 align=0,
             )
-            if written >= len(text):
+            return remaining, writer
+
+        writer_to_apply: fitz.TextWriter | None = None
+        while font_size >= min_font:
+            leftover, writer_to_apply = try_fill(font_size, text)
+            if not leftover:
                 break
             font_size -= 1
 
-        if written < len(text):
-            # Overflow even at the smallest font: truncate with ellipsis
-            truncated = text[: max(0, written if written > 0 else int(len(text) * 0.9))].rstrip()
+        if leftover and writer_to_apply:
+            # 최소 폰트에서도 남을 경우, 잘라내고 한번만 쓴다.
+            keep_len = max(0, len(text) - len(leftover))
+            truncated = text[:keep_len or max(0, int(len(text) * 0.9))].rstrip()
             if truncated and truncated[-1] not in {".", "!", "?"}:
-                truncated = truncated.rstrip("-*")  # tidy bullet leftovers
+                truncated = truncated.rstrip("-*")
             truncated = truncated[: max(0, len(truncated) - 3)] + "..."
-            page.insert_textbox(
-                note_rect,
-                truncated,
-                fontsize=min_font,
-                fontname="helv",
-                align=0,
-            )
+            _, writer_to_apply = try_fill(min_font, truncated)
+            writer_to_apply.write_text(page)
             logger.debug("Truncated note content to fit page %s", page.number + 1)
+        elif writer_to_apply:
+            writer_to_apply.write_text(page)
 
     def _markdown_to_text(self, text: str) -> str:
         cleaned = text.replace("\r\n", "\n").strip()

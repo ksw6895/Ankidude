@@ -27,3 +27,9 @@ class PageNote(BaseModel):
 
 class LectureNotesOutput(BaseModel):
     notes: List[PageNote]
+
+
+class CleanTranscriptOutput(BaseModel):
+    cleaned_transcript: str = Field(
+        description="Transcript cleaned and normalized while preserving ordering."
+    )

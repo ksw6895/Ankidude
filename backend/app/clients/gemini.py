@@ -9,7 +9,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.core.config import get_settings
 from app.schemas.card import Card as CardSchema
 from app.schemas.card import LLMResult
-from app.schemas.gemini_cards import LectureCardsOutput, LectureNotesOutput, PageNote
+from app.schemas.gemini_cards import (
+    CleanTranscriptOutput,
+    LectureCardsOutput,
+    LectureNotesOutput,
+    PageNote,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +77,9 @@ def _build_note_prompt(slides: List[Dict], transcript_text: str, meta: Dict) -> 
     return f"""
 You are a study note writer. Using the slides and transcript together, write concise Markdown notes for each slide page.
 
+Language:
+- 기본은 한국어로 작성하되, 의학 전문용어는 영어를 괄호에 병기하세요. (예: 파킨슨병(Parkinson's disease))
+
 Rules:
 - Match notes to each page number. Use slide text as the anchor; use transcript only to clarify wording.
 - Keep each page's content within 500 Korean characters (concise bullets and short headers).
@@ -85,6 +93,33 @@ Response schema is enforced with a top-level array "notes" containing objects:
 Metadata:
 {meta_block}
 
+{_serialize_slides(slides)}
+
+[TRANSCRIPT_RAW]
+{transcript_text}
+"""
+
+
+def _build_clean_prompt(slides: List[Dict], transcript_text: str, meta: Dict) -> str:
+    meta_block = "\n".join(
+        [
+            f"Course: {meta.get('subject') or ''}",
+            f"Lecture Title: {meta.get('title') or ''}",
+            f"Professor: {meta.get('professor') or ''}",
+        ]
+    )
+    return f"""
+You are cleaning a noisy lecture transcript.
+
+Goals:
+- Output a fully cleaned transcript in Korean when possible; retain original English terms, especially medical terms. If Korean term exists, append English in parentheses where relevant. Keep original ordering and speaker context minimal (no hallucinated speakers).
+- Fix STT typos, spacing, and punctuation.
+- Do not summarize, shorten, or reorder. Do not add headers or bullets. Output plain text only.
+
+Metadata (for terminology hints):
+{meta_block}
+
+Slides (for terminology anchoring):
 {_serialize_slides(slides)}
 
 [TRANSCRIPT_RAW]
@@ -212,3 +247,50 @@ class GeminiClient:
             raise GeminiStructuredOutputError("Gemini structured output validation failed") from exc
 
         return parsed.notes
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        stop=stop_after_attempt(2),
+        reraise=True,
+    )
+    def clean_transcript(
+        self,
+        slides: List[Dict],
+        transcript_text: str,
+        meta: Optional[Dict] = None,
+    ) -> str:
+        meta = meta or {}
+        prompt = _build_clean_prompt(slides, transcript_text, meta)
+        config = {
+            "response_mime_type": "application/json",
+            "response_json_schema": CleanTranscriptOutput.model_json_schema(),
+            "max_output_tokens": self.max_output_tokens,
+        }
+
+        response = self.client.models.generate_content(
+            model=self.model_id,
+            contents=prompt,
+            config=config,
+        )
+
+        if not response or not response.text:
+            logger.error(
+                "Empty structured response from Gemini (clean transcript)",
+                extra={"prompt": prompt, "config": config, "raw_response": repr(response)},
+            )
+            raise GeminiStructuredOutputError("Gemini response text is empty")
+
+        try:
+            parsed = CleanTranscriptOutput.model_validate_json(response.text)
+        except ValidationError as exc:
+            logger.error(
+                "Failed to validate structured Gemini clean transcript response",
+                extra={
+                    "prompt": prompt,
+                    "config": config,
+                    "raw_response": response.text,
+                },
+            )
+            raise GeminiStructuredOutputError("Gemini structured output validation failed") from exc
+
+        return parsed.cleaned_transcript
