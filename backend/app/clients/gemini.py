@@ -71,7 +71,6 @@ class GeminiClient:
         model_id: Optional[str] = None,
         *,
         max_output_tokens: int = 16000,
-        request_timeout: int = 600,
         client: Optional[genai.Client] = None,
     ):
         settings = get_settings()
@@ -79,7 +78,6 @@ class GeminiClient:
         self.api_key = api_key or settings.gemini_api_key or env_api_key
         self.model_id = model_id or settings.gemini_model_id
         self.max_output_tokens = max_output_tokens
-        self.request_timeout = request_timeout
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY is required")
 
@@ -108,7 +106,6 @@ class GeminiClient:
             model=self.model_id,
             contents=prompt,
             config=config,
-            request_options={"timeout": self.request_timeout},
         )
 
         if not response or not response.text:
