@@ -8,6 +8,7 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
 from app.clients.gemini import GeminiClient, GeminiStructuredOutputError
+from app.schemas.gemini_cards import LectureNotesOutput
 
 
 class _FakeResponse:
@@ -79,6 +80,36 @@ class GeminiClientStructuredOutputTests(unittest.TestCase):
 
         with self.assertRaises(GeminiStructuredOutputError):
             client.generate_cards(self.slides, self.transcript, self.meta)
+
+    def test_generate_notes_returns_page_notes(self):
+        payload = {
+            "notes": [
+                {"page_number": 1, "content": "# Intro\n- brief note"},
+                {"page_number": 2, "content": "Summary bullet"},
+            ]
+        }
+        fake_response = _FakeResponse(json.dumps(payload))
+        fake_client = _FakeClient(fake_response)
+
+        client = GeminiClient(
+            api_key="test-key", client=fake_client, model_id="fake-model", max_output_tokens=1024
+        )
+        notes = client.generate_lecture_notes(self.slides, self.transcript, self.meta)
+
+        self.assertEqual(len(notes), 2)
+        self.assertEqual(notes[0].page_number, 1)
+        self.assertIn("Intro", notes[0].content)
+
+        call = fake_client.models.calls[0]
+        self.assertEqual(call["config"]["response_json_schema"], LectureNotesOutput.model_json_schema())
+
+    def test_generate_notes_raises_on_empty_response(self):
+        fake_response = _FakeResponse("")
+        fake_client = _FakeClient(fake_response)
+        client = GeminiClient(api_key="test-key", client=fake_client)
+
+        with self.assertRaises(GeminiStructuredOutputError):
+            client.generate_lecture_notes(self.slides, self.transcript, self.meta)
 
 
 if __name__ == "__main__":

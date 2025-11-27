@@ -9,7 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.core.config import get_settings
 from app.schemas.card import Card as CardSchema
 from app.schemas.card import LLMResult
-from app.schemas.gemini_cards import LectureCardsOutput
+from app.schemas.gemini_cards import LectureCardsOutput, LectureNotesOutput, PageNote
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,38 @@ The API will enforce a response schema with:
 Fill every required field in that schema.
 
 Here is metadata:
+{meta_block}
+
+{_serialize_slides(slides)}
+
+[TRANSCRIPT_RAW]
+{transcript_text}
+"""
+
+
+def _build_note_prompt(slides: List[Dict], transcript_text: str, meta: Dict) -> str:
+    meta_block = "\n".join(
+        [
+            f"Course: {meta.get('subject') or ''}",
+            f"Lecture Title: {meta.get('title') or ''}",
+            f"Professor: {meta.get('professor') or ''}",
+        ]
+    )
+
+    return f"""
+You are a study note writer. Using the slides and transcript together, write concise Markdown notes for each slide page.
+
+Rules:
+- Match notes to each page number. Use slide text as the anchor; use transcript only to clarify wording.
+- Keep each page's content within 500 Korean characters (concise bullets and short headers).
+- Use Markdown (headers, bold emphasis, bullet lists). Do not include raw HTML.
+- Stay faithful to provided material. Avoid hallucinations.
+
+Response schema is enforced with a top-level array "notes" containing objects:
+- page_number: integer page index starting at 1
+- content: Markdown string (<=500 chars) for that page
+
+Metadata:
 {meta_block}
 
 {_serialize_slides(slides)}
@@ -133,3 +165,50 @@ class GeminiClient:
             for card in parsed.cards
         ]
         return LLMResult(cleaned_transcript=parsed.cleaned_transcript, cards=cards)
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        stop=stop_after_attempt(2),
+        reraise=True,
+    )
+    def generate_lecture_notes(
+        self,
+        slides: List[Dict],
+        transcript_text: str,
+        meta: Optional[Dict] = None,
+    ) -> List[PageNote]:
+        meta = meta or {}
+        prompt = _build_note_prompt(slides, transcript_text, meta)
+        config = {
+            "response_mime_type": "application/json",
+            "response_json_schema": LectureNotesOutput.model_json_schema(),
+            "max_output_tokens": self.max_output_tokens,
+        }
+
+        response = self.client.models.generate_content(
+            model=self.model_id,
+            contents=prompt,
+            config=config,
+        )
+
+        if not response or not response.text:
+            logger.error(
+                "Empty structured response from Gemini (notes)",
+                extra={"prompt": prompt, "config": config, "raw_response": repr(response)},
+            )
+            raise GeminiStructuredOutputError("Gemini response text is empty")
+
+        try:
+            parsed = LectureNotesOutput.model_validate_json(response.text)
+        except ValidationError as exc:
+            logger.error(
+                "Failed to validate structured Gemini notes response",
+                extra={
+                    "prompt": prompt,
+                    "config": config,
+                    "raw_response": response.text,
+                },
+            )
+            raise GeminiStructuredOutputError("Gemini structured output validation failed") from exc
+
+        return parsed.notes

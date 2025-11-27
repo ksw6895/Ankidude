@@ -18,8 +18,10 @@ export const withBase = (path: string) => {
 export type LectureStatus =
   | "PENDING"
   | "RUNNING_STT"
+  | "RUNNING_ANKI"
   | "RUNNING_LLM"
   | "GENERATING_CSV"
+  | "RUNNING_NOTES"
   | "DONE"
   | "FAILED";
 
@@ -30,10 +32,17 @@ export type LectureStatusResponse = {
   updated_at: string;
   card_count?: number | null;
   download_url?: string | null;
+  csv_download_url?: string | null;
+  note_pdf_url?: string | null;
+  note_page_count?: number | null;
+  current_step?: string | null;
   error_message?: string | null;
   title?: string | null;
   subject?: string | null;
   professor?: string | null;
+  generate_cards?: boolean;
+  generate_notes?: boolean;
+  has_audio?: boolean;
 };
 
 const withAdminHeader = (adminPassword?: string): Record<string, string> => {

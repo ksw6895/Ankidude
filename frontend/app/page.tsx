@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Command, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { FileUploadZone } from "../components/file-upload-zone";
 import { Button } from "../components/ui/button";
@@ -27,10 +27,17 @@ export default function HomePage() {
   const [slides, setSlides] = useState<File | null>(null);
   const [audio, setAudio] = useState<File | null>(null);
   const [adminPassword, setAdminPassword] = useState(loadAdminPassword());
+  const [options, setOptions] = useState({ anki: true, notes: false });
   const [meta, setMeta] = useState({ title: "", subject: "", professor: "" });
 
   const canNext = !!slides;
-  const canSubmit = !!slides && !!adminPassword && !loading;
+  const canSubmit = !!slides && !!adminPassword && !loading && (options.anki || options.notes);
+
+  useEffect(() => {
+    if (!audio && options.notes) {
+      setOptions((prev) => ({ ...prev, notes: false }));
+    }
+  }, [audio, options.notes]);
 
   const handleUpload = async () => {
     if (!slides) {
@@ -42,6 +49,14 @@ export default function HomePage() {
       setStep(1);
       return;
     }
+    if (!options.anki && !options.notes) {
+      toast({
+        title: "실행할 작업을 선택하세요",
+        description: "Anki 카드 또는 PDF 노트 중 하나 이상 선택해야 합니다.",
+        variant: "destructive"
+      });
+      return;
+    }
     setLoading(true);
     const formData = new FormData();
     formData.append("slides_pdf", slides);
@@ -49,6 +64,8 @@ export default function HomePage() {
     formData.append("title", meta.title);
     formData.append("subject", meta.subject);
     formData.append("professor", meta.professor);
+    formData.append("generate_cards", String(options.anki));
+    formData.append("generate_notes", String(options.notes));
 
     try {
       const job = await createLecture(formData, adminPassword);
@@ -71,6 +88,8 @@ export default function HomePage() {
       setLoading(false);
     }
   };
+
+  const disableNotes = !audio;
 
   return (
     <div className="space-y-16">
@@ -122,23 +141,80 @@ export default function HomePage() {
           </div>
 
           {step === 1 ? (
-            <div className="grid gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <FileUploadZone
-                label="Slide PDF"
-                description="필수 업로드"
-                accept={{ "application/pdf": [".pdf"] }}
-                file={slides}
-                onFile={setSlides}
-                onRemove={() => setSlides(null)}
-              />
-              <FileUploadZone
-                label="Lecture Audio"
-                description="선택 (있으면 STT 보정)"
-                accept={{ "audio/*": [] }}
-                file={audio}
-                onFile={setAudio}
-                onRemove={() => setAudio(null)}
-              />
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FileUploadZone
+                  label="Slide PDF"
+                  description="필수 업로드"
+                  accept={{ "application/pdf": [".pdf"] }}
+                  file={slides}
+                  onFile={setSlides}
+                  onRemove={() => setSlides(null)}
+                />
+                <FileUploadZone
+                  label="Lecture Audio"
+                  description="선택 (있으면 STT 보정)"
+                  accept={{ "audio/*": [] }}
+                  file={audio}
+                  onFile={setAudio}
+                  onRemove={() => setAudio(null)}
+                />
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-inner">
+                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">무엇을 만들까요?</p>
+                    <p className="text-xs text-slate-500">
+                      Anki 카드와 강의 노트를 독립적으로 실행할 수 있습니다.
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                    {options.anki && options.notes
+                      ? "Both Selected"
+                      : options.anki
+                        ? "Anki Only"
+                        : options.notes
+                          ? "Notes Only"
+                          : "Select Task"}
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/80 bg-white/60 px-3 py-3 text-sm text-slate-800 shadow-sm transition hover:border-teal-500/50">
+                    <input
+                      type="checkbox"
+                      checked={options.anki}
+                      onChange={(e) => setOptions((prev) => ({ ...prev, anki: e.target.checked }))}
+                      className="mt-1 h-4 w-4 accent-teal-600"
+                    />
+                    <div>
+                      <p className="font-semibold text-slate-900">Anki Flashcards</p>
+                      <p className="text-xs text-slate-500">시험 대비 Q&A CSV (기본 선택)</p>
+                    </div>
+                  </label>
+
+                  <label
+                    className={cn(
+                      "flex items-start gap-3 rounded-xl border border-slate-200/80 bg-white/60 px-3 py-3 text-sm text-slate-800 shadow-sm transition",
+                      disableNotes ? "opacity-60" : "hover:border-teal-500/50"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={disableNotes}
+                      checked={!disableNotes && options.notes}
+                      onChange={(e) => setOptions((prev) => ({ ...prev, notes: e.target.checked }))}
+                      className="mt-1 h-4 w-4 accent-teal-600 disabled:cursor-not-allowed"
+                    />
+                    <div>
+                      <p className="font-semibold text-slate-900">PDF Lecture Notes</p>
+                      <p className="text-xs text-slate-500">
+                        {disableNotes ? "오디오 업로드 시 활성화" : "슬라이드 우측에 요약 노트 삽입"}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-2 duration-300">

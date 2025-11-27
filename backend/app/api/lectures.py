@@ -23,6 +23,8 @@ async def create_lecture(
     title: str | None = Form(None),
     subject: str | None = Form(None),
     professor: str | None = Form(None),
+    generate_cards: bool = Form(True),
+    generate_notes: bool = Form(False),
     _: bool = Depends(require_admin_password),
     db: Session = Depends(get_db),
     storage: StorageManager = Depends(get_storage_dep),
@@ -35,6 +37,7 @@ async def create_lecture(
     audio_url = None
     if audio_file and audio_file.filename:
         audio_url = storage.save_fileobj(audio_file.file, audio_file.filename, prefix="audio")
+    audio_url = audio_url or ""
 
     lecture = Lecture(
         title=title,
@@ -42,6 +45,8 @@ async def create_lecture(
         professor=professor,
         slides_url=slides_url,
         audio_url=audio_url,
+        generate_cards=generate_cards,
+        generate_notes=generate_notes,
         status=LectureStatus.PENDING,
     )
     db.add(lecture)
@@ -53,6 +58,11 @@ async def create_lecture(
     download_url = (
         f"{settings.api_prefix}/lectures/{lecture.id}/csv" if lecture.status == LectureStatus.DONE else None
     )
+    note_download_url = (
+        f"{settings.api_prefix}/lectures/{lecture.id}/notes"
+        if lecture.status == LectureStatus.DONE and lecture.note_pdf_url
+        else None
+    )
 
     return LectureStatusResponse(
         job_id=lecture.id,
@@ -61,6 +71,16 @@ async def create_lecture(
         updated_at=lecture.updated_at,
         card_count=lecture.card_count,
         download_url=download_url,
+        csv_download_url=download_url,
+        note_pdf_url=note_download_url,
+        note_page_count=lecture.note_page_count,
+        current_step=lecture.current_step,
+        title=lecture.title,
+        subject=lecture.subject,
+        professor=lecture.professor,
+        generate_cards=lecture.generate_cards,
+        generate_notes=lecture.generate_notes,
+        has_audio=bool(lecture.audio_url),
         error_message=lecture.error_message,
     )
 
@@ -79,6 +99,11 @@ async def get_lecture(
     download_url = (
         f"{settings.api_prefix}/lectures/{lecture.id}/csv" if lecture.status == LectureStatus.DONE else None
     )
+    note_download_url = (
+        f"{settings.api_prefix}/lectures/{lecture.id}/notes"
+        if lecture.status == LectureStatus.DONE and lecture.note_pdf_url
+        else None
+    )
 
     return LectureStatusResponse(
         job_id=lecture.id,
@@ -87,6 +112,16 @@ async def get_lecture(
         updated_at=lecture.updated_at,
         card_count=lecture.card_count,
         download_url=download_url,
+        csv_download_url=download_url,
+        note_pdf_url=note_download_url,
+        note_page_count=lecture.note_page_count,
+        current_step=lecture.current_step,
+        title=lecture.title,
+        subject=lecture.subject,
+        professor=lecture.professor,
+        generate_cards=lecture.generate_cards,
+        generate_notes=lecture.generate_notes,
+        has_audio=bool(lecture.audio_url),
         error_message=lecture.error_message,
     )
 
@@ -130,3 +165,44 @@ async def download_csv(
         )
 
     raise HTTPException(status_code=404, detail="CSV file not found")
+
+
+@router.get("/lectures/{job_id}/notes")
+async def download_notes_pdf(
+    job_id: str,
+    _: bool = Depends(require_admin_password),
+    db: Session = Depends(get_db),
+    storage: StorageManager = Depends(get_storage_dep),
+):
+    lecture = db.get(Lecture, job_id)
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if lecture.status != LectureStatus.DONE or not lecture.note_pdf_url:
+        raise HTTPException(status_code=400, detail="PDF not ready")
+
+    local_path = storage.resolve_local_path(lecture.note_pdf_url)
+    filename = f"lecture-{job_id}-notes.pdf"
+    if local_path and local_path.exists():
+        return FileResponse(
+            str(local_path),
+            media_type="application/pdf",
+            filename=filename,
+        )
+
+    if lecture.note_pdf_url.startswith("http"):
+        parsed = urlparse(lecture.note_pdf_url)
+        inferred_name = os.path.basename(parsed.path) or filename
+        try:
+            resp = httpx.get(lecture.note_pdf_url, timeout=600, follow_redirects=True)
+            resp.raise_for_status()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Failed to fetch PDF from remote storage") from exc
+
+        content_type = resp.headers.get("content-type") or "application/pdf"
+        return Response(
+            content=resp.content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{inferred_name}"'},
+        )
+
+    raise HTTPException(status_code=404, detail="PDF file not found")

@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from app.clients.elevenlabs import ElevenLabsClient
 from app.clients.gemini import GeminiClient
 from app.models import Lecture, LectureStatus, Transcript
 from app.services.csv_generator import render_csv
+from app.services.pdf_note_service import PdfNoteService
 from app.services.pdf_parser import parse_pdf_to_slides
 from app.storage.manager import StorageManager
 from app.utils.file_utils import ensure_local_file
@@ -29,25 +31,17 @@ def process_lecture_job(
 
     try:
         logger.info("Job %s: 시작", lecture_id)
-        transcript = None
-        if lecture.audio_url:
-            lecture.status = LectureStatus.RUNNING_STT
-            db.commit()
-            logger.info("Job %s: STT 단계 시작 (audio=%s)", lecture_id, lecture.audio_url)
+        lecture.current_step = "START"
+        lecture.error_message = None
+        db.commit()
 
-            audio_path = ensure_local_file(lecture.audio_url)
-            if audio_path.parent.name.startswith("ankidude_"):
-                temp_paths.append(audio_path)
-            stt_client = ElevenLabsClient()
-            stt_result = stt_client.transcribe_file(str(audio_path), language_code=language_code)
-            transcript = Transcript(
-                lecture_id=lecture.id,
-                raw_text=stt_result.get("text", ""),
-                words_json=json.dumps(stt_result.get("words", [])),
-            )
-            db.add(transcript)
-            db.commit()
-        else:
+        slides_path = ensure_local_file(lecture.slides_url)
+        if slides_path.parent.name.startswith("ankidude_"):
+            temp_paths.append(slides_path)
+        slides = parse_pdf_to_slides(slides_path)
+
+        transcript = db.query(Transcript).filter_by(lecture_id=lecture.id).first()
+        if not transcript:
             transcript = Transcript(
                 lecture_id=lecture.id,
                 raw_text="",
@@ -56,52 +50,108 @@ def process_lecture_job(
             db.add(transcript)
             db.commit()
 
-        lecture.status = LectureStatus.RUNNING_LLM
-        db.commit()
-        logger.info(
-            "Job %s: LLM 단계 시작 (slides=%s, audio=%s)",
-            lecture_id,
-            lecture.slides_url,
-            "present" if lecture.audio_url else "absent",
-        )
+        # 공통 STT 단계 (선택)
+        if lecture.audio_url:
+            lecture.status = LectureStatus.RUNNING_STT
+            lecture.current_step = "STT"
+            db.commit()
+            logger.info("Job %s: STT 단계 시작 (audio=%s)", lecture_id, lecture.audio_url)
 
-        slides_path = ensure_local_file(lecture.slides_url)
-        if slides_path.parent.name.startswith("ankidude_"):
-            temp_paths.append(slides_path)
-        slides = parse_pdf_to_slides(slides_path)
+            audio_path = ensure_local_file(lecture.audio_url)
+            if audio_path.parent.name.startswith("ankidude_"):
+                temp_paths.append(audio_path)
+            stt_client = ElevenLabsClient()
+            stt_result = stt_client.transcribe_file(str(audio_path), language_code=language_code)
+            transcript.raw_text = stt_result.get("text", "") or ""
+            transcript.words_json = json.dumps(stt_result.get("words", []))
+            db.add(transcript)
+            db.commit()
+        elif not transcript.raw_text:
+            transcript.raw_text = ""
+            transcript.words_json = json.dumps([])
+            db.add(transcript)
+            db.commit()
+
         gemini_client = GeminiClient()
-        llm_result = gemini_client.generate_cards(
-            slides,
-            transcript.raw_text or "",
-            meta={
-                "title": lecture.title,
-                "subject": lecture.subject,
-                "professor": lecture.professor,
-            },
-        )
-        transcript.cleaned_text = llm_result.cleaned_transcript
-        db.add(transcript)
-        db.commit()
 
-        lecture.status = LectureStatus.GENERATING_CSV
-        db.commit()
-        logger.info("Job %s: CSV 생성 단계", lecture_id)
+        # Anki 카드 생성 (옵션)
+        cards_result = None
+        if getattr(lecture, "generate_cards", True):
+            lecture.status = LectureStatus.RUNNING_ANKI
+            lecture.current_step = "ANKI_GEN"
+            db.commit()
+            logger.info("Job %s: Anki 카드 생성 단계", lecture_id)
 
-        csv_text = render_csv(llm_result.cards)
-        csv_filename = f"{lecture.id}.csv"
-        csv_url = storage.save_bytes(
-            csv_text.encode("utf-8"),
-            filename=csv_filename,
-            prefix="exports",
-            content_type="text/csv; charset=utf-8",
-            content_disposition=f'attachment; filename="{csv_filename}"',
-        )
-        lecture.csv_url = csv_url
-        lecture.card_count = len(llm_result.cards)
+            cards_result = gemini_client.generate_cards(
+                slides,
+                transcript.raw_text or "",
+                meta={
+                    "title": lecture.title,
+                    "subject": lecture.subject,
+                    "professor": lecture.professor,
+                },
+            )
+            transcript.cleaned_text = cards_result.cleaned_transcript
+            db.add(transcript)
+            db.commit()
+
+            lecture.status = LectureStatus.GENERATING_CSV
+            db.commit()
+            csv_text = render_csv(cards_result.cards)
+            csv_filename = f"{lecture.id}.csv"
+            csv_url = storage.save_bytes(
+                csv_text.encode("utf-8"),
+                filename=csv_filename,
+                prefix="exports",
+                content_type="text/csv; charset=utf-8",
+                content_disposition=f'attachment; filename="{csv_filename}"',
+            )
+            lecture.csv_url = csv_url
+            lecture.card_count = len(cards_result.cards)
+            logger.info("Job %s: CSV 생성 완료 (cards=%s, csv=%s)", lecture_id, lecture.card_count, csv_url)
+        else:
+            lecture.card_count = 0
+            lecture.csv_url = None
+
+        # 강의 노트 생성 (옵션)
+        if getattr(lecture, "generate_notes", False):
+            lecture.status = LectureStatus.RUNNING_NOTES
+            lecture.current_step = "NOTE_GEN"
+            db.commit()
+            logger.info("Job %s: PDF 노트 생성 단계", lecture_id)
+
+            notes = gemini_client.generate_lecture_notes(
+                slides,
+                transcript.cleaned_text or transcript.raw_text or "",
+                meta={
+                    "title": lecture.title,
+                    "subject": lecture.subject,
+                    "professor": lecture.professor,
+                },
+            )
+            pdf_service = PdfNoteService(storage)
+            pdf_url, rendered_pages = pdf_service.render_notes_pdf(
+                lecture.slides_url,
+                notes,
+                filename=f"{lecture.id}-notes.pdf",
+            )
+            lecture.note_pdf_url = pdf_url
+            lecture.note_page_count = rendered_pages
+            logger.info("Job %s: PDF 노트 생성 완료 (pages=%s, url=%s)", lecture_id, rendered_pages, pdf_url)
+        else:
+            lecture.note_pdf_url = None
+            lecture.note_page_count = None
+
         lecture.status = LectureStatus.DONE
+        lecture.current_step = "FINISHED"
         lecture.error_message = None
         db.commit()
-        logger.info("Job %s: 완료 (cards=%s, csv=%s)", lecture_id, lecture.card_count, csv_url)
+        logger.info(
+            "Job %s: 완료 (cards=%s, notes=%s)",
+            lecture_id,
+            lecture.card_count,
+            lecture.note_pdf_url,
+        )
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Failed to process lecture %s", lecture_id)
         db.rollback()

@@ -16,3 +16,14 @@ class LectureCardsOutput(BaseModel):
         description="Transcript cleaned and normalized for study."
     )
     cards: List[Card]
+
+
+class PageNote(BaseModel):
+    page_number: int = Field(ge=1, description="1-based index of the PDF page.")
+    content: str = Field(
+        description="Markdown note content for this page (<=500 characters)."
+    )
+
+
+class LectureNotesOutput(BaseModel):
+    notes: List[PageNote]
