@@ -16,3 +16,4 @@ celery_app.conf.task_serializer = "json"
 celery_app.conf.result_serializer = "json"
 celery_app.conf.accept_content = ["json"]
 celery_app.conf.task_time_limit = 60 * 60 * 2
+celery_app.conf.task_soft_time_limit = 60 * 45  # soft limit to avoid silent hangs
