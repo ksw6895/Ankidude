@@ -55,7 +55,7 @@ class PdfNoteService:
         original_rect = page.rect
         new_width = original_rect.width * 1.3  # 30% extra room on the right
         new_rect = fitz.Rect(original_rect.x0, original_rect.y0, new_width, original_rect.y1)
-        page.set_media_box(new_rect)
+        page.set_mediabox(new_rect)
 
         padding = 16
         note_rect = fitz.Rect(
