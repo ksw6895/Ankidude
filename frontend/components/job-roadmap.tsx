@@ -3,7 +3,7 @@ import { CheckCircle2, Flag, Loader2, NotebookPen, Sparkles, Upload, Waves } fro
 import { LectureStatus } from "../lib/api";
 import { cn } from "../lib/utils";
 
-type RoadmapStepId = "START" | "STT" | "ANKI" | "NOTES" | "FINISH";
+type RoadmapStepId = "START" | "STT" | "CLEAN" | "ANKI" | "NOTES" | "FINISH";
 
 type JobRoadmapProps = {
   status?: LectureStatus;
@@ -13,6 +13,7 @@ type JobRoadmapProps = {
   hasAudio?: boolean;
   cardDone?: boolean;
   noteDone?: boolean;
+  cleanDone?: boolean;
 };
 
 type StepState = "pending" | "active" | "done" | "skipped";
@@ -24,12 +25,19 @@ export function JobRoadmap({
   generateNotes = false,
   hasAudio = false,
   cardDone = false,
-  noteDone = false
+  noteDone = false,
+  cleanDone: cleanDoneProp = false
 }: JobRoadmapProps) {
   const isFailed = status === "FAILED";
 
   const sttActive = status === "RUNNING_STT" || currentStep === "STT";
   const sttDone = hasAudio ? !["PENDING", "RUNNING_STT"].includes(status || "PENDING") : true;
+
+  const cleanActive = currentStep === "CLEAN_TRANSCRIPT";
+  const progressedAfterClean = ["RUNNING_ANKI", "RUNNING_LLM", "GENERATING_CSV", "RUNNING_NOTES", "DONE"].includes(
+    status || ""
+  );
+  const cleanDone = cleanDoneProp || progressedAfterClean || cardDone || noteDone || status === "DONE";
 
   const cardsActive =
     generateCards &&
@@ -64,12 +72,15 @@ export function JobRoadmap({
         ? "active"
         : "pending";
 
+  const cleanState: StepState = cleanDone ? "done" : cleanActive ? "active" : sttState === "done" ? "pending" : sttState;
+
   const startState: StepState = status === "PENDING" ? "active" : "done";
   const finishState: StepState = status === "DONE" ? "done" : isFailed ? "pending" : "pending";
 
   const steps: { id: RoadmapStepId; label: string; caption: string; enabled: boolean; icon: any }[] = [
     { id: "START", label: "Start", caption: "업로드 완료", enabled: true, icon: Upload },
     { id: "STT", label: "Processing Audio", caption: "ElevenLabs STT", enabled: hasAudio, icon: Waves },
+    { id: "CLEAN", label: "Clean Transcript", caption: "Gemini 정제", enabled: true, icon: Sparkles },
     { id: "ANKI", label: "Generating Anki", caption: "Gemini -> CSV", enabled: generateCards, icon: Sparkles },
     { id: "NOTES", label: "Writing Notes", caption: "Gemini -> PDF 편집", enabled: generateNotes, icon: NotebookPen },
     { id: "FINISH", label: "Finish", caption: "완료", enabled: true, icon: Flag }
@@ -78,6 +89,7 @@ export function JobRoadmap({
   const stateMap: Record<RoadmapStepId, StepState> = {
     START: startState,
     STT: sttState,
+    CLEAN: cleanState,
     ANKI: cardsState,
     NOTES: notesState,
     FINISH: finishState

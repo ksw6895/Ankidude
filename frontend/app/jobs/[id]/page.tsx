@@ -34,7 +34,7 @@ const statusMap: Record<LectureStatus, string> = {
   PENDING: "대기 중",
   RUNNING_STT: "음성 처리 중",
   RUNNING_ANKI: "Anki 생성 중",
-  RUNNING_LLM: "내용 분석 중",
+  RUNNING_LLM: "텍스트 정제 중",
   GENERATING_CSV: "CSV 패킹 중",
   RUNNING_NOTES: "노트 작성 중",
   DONE: "완료",
@@ -108,6 +108,11 @@ export default function JobPage() {
 
   const cardDone = generateCards && !!csvDownloadLink;
   const noteDone = generateNotes && !!data?.note_pdf_url;
+  const cleanDone =
+    data?.status === "DONE" ||
+    ["RUNNING_ANKI", "RUNNING_LLM", "GENERATING_CSV", "RUNNING_NOTES"].includes(data?.status || "") ||
+    cardDone ||
+    noteDone;
 
   const loadCsv = useCallback(async () => {
     if (!csvDownloadLink) return null;
@@ -280,6 +285,7 @@ export default function JobPage() {
         hasAudio={hasAudio}
         cardDone={cardDone}
         noteDone={noteDone}
+        cleanDone={cleanDone}
       />
 
       <div className="grid gap-4 md:grid-cols-4">
