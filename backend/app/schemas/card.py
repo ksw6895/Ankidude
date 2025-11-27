@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class Card(BaseModel):
     front: str = Field(..., description="Front side text")
     back: str = Field(..., description="Back side text")
-    tag: str = Field(default="", description="Optional tag")
+    tag: Optional[str] = Field(default="", description="Optional tag")
 
 
 class LLMResult(BaseModel):

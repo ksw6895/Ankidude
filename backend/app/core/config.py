@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +16,9 @@ class Settings(BaseSettings):
 
     allowed_origins_raw: str = Field(default="", alias="ALLOWED_ORIGINS")
 
-    gemini_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY")
+    )
     gemini_model_id: str = "gemini-3-pro-preview"
 
     elevenlabs_api_key: Optional[str] = None

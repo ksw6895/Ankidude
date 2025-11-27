@@ -4,7 +4,7 @@
 
 ## 0. 준비물
 - GitHub 저장소: 현재 repo가 원격에 있어야 합니다.
-- API 키: `ELEVENLABS_API_KEY`, `GEMINI_API_KEY` (`GEMINI_MODEL_ID=gemini-3-pro-preview`).
+- API 키: `ELEVENLABS_API_KEY`, `GEMINI_API_KEY` (`GEMINI_MODEL_ID=gemini-3-pro-preview` 기본, 필요 시 교체).
 - S3 호환 스토리지: AWS S3 또는 R2/Wasabi 등 (버킷 1개, 퍼블릭 읽기 또는 사전 서명 URL 허용).
 - Render 계정, Vercel 계정.
 

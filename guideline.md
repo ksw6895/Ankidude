@@ -18,9 +18,10 @@
   - **ElevenLabs STT**로 고정밀 transcript 생성  
     - 기본 배치 STT: **Scribe v1**, `POST /v1/speech-to-text` 사용 :contentReference[oaicite:0]{index=0}  
     - 향후 필요시 실시간/스트리밍 STT: **Scribe v2 Realtime (ScribeRealtime v2)**로 확장 가능 :contentReference[oaicite:1]{index=1}
-  - **Gemini 3 Pro Preview** (`gemini-3-pro-preview`)로
+  - **Gemini 3 Pro Preview** (`gemini-3-pro-preview`, 기본)로
     - STT 결과를 슬라이드 텍스트 기준으로 **교정**
     - **Anki Basic 카드(front/back)**를 생성
+    - 속도/비용을 우선하면 `GEMINI_MODEL_ID=gemini-2.5-flash` 등으로 교체 가능
 - 출력:
   - **UTF-8 CSV 텍스트 파일**
   - 컬럼: `Front;Back;Tags` (세미콜론 구분)
@@ -40,23 +41,20 @@
 
 ## 1. 기술 스택 및 외부 서비스
 
-### 1.1 LLM – Gemini 3 Pro Preview (고정)
+### 1.1 LLM – Gemini 3 Pro Preview (기본, structured output)
 
-- 모델: **`gemini-3-pro-preview`** :contentReference[oaicite:3]{index=3}  
+- 기본 모델: **`gemini-3-pro-preview`** (google-genai SDK structured output)  
 - 특징:
   - **텍스트 + 코드 + 이미지 + 오디오 + 비디오 + PDF** 입력 지원 (멀티모달) :contentReference[oaicite:4]{index=4}
   - 최대 **1M 토큰 입력 / 64k 토큰 출력** 컨텍스트 윈도우로,  
     강의 transcript + 전체 슬라이드를 한 번에 처리 가능
-  - 고난도 추론 및 긴 문맥 이해에서 2.x 계열 대비 성능 향상 :contentReference[oaicite:5]{index=5}
-- 가격 개요 (Developer API 기준, 필요시 조정) :contentReference[oaicite:6]{index=6}
-  - 입력: 약 **$2 / 1M tokens (<= 200k)**  
-  - 출력: 약 **$12 / 1M tokens (<= 200k)**  
-  - 1시간 강의 기준 예상 사용량: 수만~수십만 토큰 → 1회당 **$0.1–0.5 수준**으로 추정
+  - 고난도 추론과 긴 문맥 이해에 최적화되어 카드 품질을 우선 보장
+- 속도/비용 옵션:
+  - 비용·지연을 줄이고 싶으면 `GEMINI_MODEL_ID=gemini-2.5-flash` 등으로 환경변수만 교체
 
 > **규칙:**  
-> - LLM 관련 모든 기능은 **단일 모델** `gemini-3-pro-preview`를 사용한다.  
-> - 모델 교체를 쉽게 하기 위해, 코드 상에서 **환경 변수**로 모델 ID를 주입한다.
->   - 예: `GEMINI_MODEL_ID=gemini-3-pro-preview`
+> - LLM 관련 모든 기능은 **환경 변수로 주입된 단일 모델**을 사용한다.  
+> - 기본값은 `gemini-3-pro-preview`, 필요 시 `GEMINI_MODEL_ID`로 오버라이드한다.
 
 ### 1.2 STT – ElevenLabs Speech-to-Text
 
@@ -134,7 +132,7 @@
    - Job 큐에서 작업을 가져와 순차 처리:
      1. ElevenLabs STT 호출
      2. PDF 파싱
-     3. Gemini 3 Pro Prompt 구성/호출
+     3. Gemini 2.5 Flash Structured Output 프롬프트 구성/호출
      4. LLM 출력 검증/정제
      5. CSV 생성 및 Object Storage에 저장
    - Job 상태를 DB에 업데이트
@@ -155,7 +153,7 @@
 2. API 서버가 파일을 S3에 저장하고, Job 레코드 생성 (`status=PENDING`)
 3. Worker가 Job을 가져와:
    - `status=RUNNING_STT` → ElevenLabs STT 호출, transcript 저장
-   - `status=RUNNING_LLM` → Gemini 3 Pro에 슬라이드 + transcript를 전달, 카드 JSON 생성
+   - `status=RUNNING_LLM` → Gemini 2.5 Flash에 슬라이드 + transcript를 전달, 카드 JSON 생성
    - `status=GENERATING_CSV` → 카드 JSON → CSV 텍스트 파일 생성, S3에 저장
    - 완료 시 `status=DONE`, 카드 수, CSV URL 기록
 4. 프론트엔드는 `/api/lectures/{id}`를 주기적으로 조회하여 상태 표시
@@ -384,11 +382,12 @@ Body:
 
 ---
 
-## 7. LLM (Gemini 3 Pro Preview) 사용 전략
+## 7. LLM (Gemini 2.5 Flash, structured output) 사용 전략
 
 ### 7.1 모델 정보 및 호출
 
-* 모델 ID: `gemini-3-pro-preview` ([Google Cloud Documentation][4])
+* 기본 모델 ID: `gemini-3-pro-preview` (google-genai SDK structured output)
+* 속도/비용을 우선하면 `GEMINI_MODEL_ID=gemini-2.5-flash` 등으로 교체
 * 입력:
 
   * 슬라이드 텍스트 (위 구조)
@@ -639,7 +638,7 @@ Anki 데스크톱/모바일은 텍스트 파일 import 시 **구분자 헤더**�
 
   * `ELEVENLABS_API_KEY`
   * `GEMINI_API_KEY` (또는 `GOOGLE_API_KEY`)
-  * `GEMINI_MODEL_ID=gemini-3-pro-preview`
+  * `GEMINI_MODEL_ID=gemini-3-pro-preview` (속도/비용 우선 시 flash 등으로 교체)
   * `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`
   * `ALLOWED_ORIGINS` (Vercel 도메인)
 
@@ -728,7 +727,7 @@ Anki 데스크톱/모바일은 텍스트 파일 import 시 **구분자 헤더**�
 1. FastAPI 백엔드 + Render Web Service
 2. 단일 Worker (동일 코드베이스 내 비동기 처리라도 괜찮음)
 3. ElevenLabs Scribe v1 STT 연동
-4. Gemini 3 Pro Preview로 카드 JSON 생성
+4. Gemini 2.5 Flash(google-genai structured output)로 카드 JSON 생성
 5. CSV 생성 + S3 저장
 6. Next.js 최소 UI (업로드, 상태 확인, 다운로드)
 
@@ -752,7 +751,7 @@ Anki 데스크톱/모바일은 텍스트 파일 import 시 **구분자 헤더**�
 
 1. **백엔드 스택**: Python + FastAPI + PostgreSQL + Redis + Celery (또는 RQ)
 2. **프론트엔드 스택**: Next.js + Vercel
-3. **LLM**: `gemini-3-pro-preview` 고정
+3. **LLM**: 기본 `gemini-3-pro-preview` (환경변수로 다른 모델 교체 가능)
 4. **STT**: ElevenLabs `POST /v1/speech-to-text` + `model_id=scribe_v1` (디폴트)
 5. **CSV 포맷**: UTF-8, `#separator:Semicolon`, `#columns:Front;Back;Tags`
 6. **아키텍처**: Web(API) + Worker + DB + S3, Render에 배포
@@ -767,7 +766,7 @@ Anki 데스크톱/모바일은 텍스트 파일 import 시 **구분자 헤더**�
 [1]: https://elevenlabs.io/docs/api-reference/speech-to-text/convert?utm_source=chatgpt.com "Create transcript | ElevenLabs Documentation"
 [2]: https://elevenlabs.io/docs/capabilities/speech-to-text?utm_source=chatgpt.com "Speech to Text | ElevenLabs Documentation"
 [3]: https://elevenlabs.io/docs/changelog/2025/4/14?utm_source=chatgpt.com "April 14, 2025 | ElevenLabs Documentation"
-[4]: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/3-pro?utm_source=chatgpt.com "Gemini 3 Pro | Generative AI on Vertex AI"
+[4]: https://ai.google.dev/gemini-api/docs/models/gemini?utm_source=chatgpt.com "Gemini models | Google AI for Developers"
 [5]: https://render.com/docs/deploy-fastapi?utm_source=chatgpt.com "Deploy a FastAPI App"
 [6]: https://vercel.com/docs/frameworks/full-stack/nextjs?utm_source=chatgpt.com "Next.js on Vercel"
 [7]: https://render.com/articles/fastapi-production-deployment-best-practices?utm_source=chatgpt.com "FastAPI production deployment best practices"

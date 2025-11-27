@@ -1,6 +1,6 @@
 # Ankidude – 슬라이드 + 오디오 → Anki CSV
 
-FastAPI + Celery 백엔드와 Next.js 프론트엔드를 이용해 강의 슬라이드(PDF)와 녹음 파일을 업로드하면 ElevenLabs Scribe v1 STT와 Gemini 3 Pro Preview로 고품질 Anki Basic CSV를 생성합니다. `guideline.md`의 지침(모델/포맷/상태 플로우)을 따릅니다.
+FastAPI + Celery 백엔드와 Next.js 프론트엔드를 이용해 강의 슬라이드(PDF)와 녹음 파일을 업로드하면 ElevenLabs Scribe v1 STT와 Gemini 3 Pro Preview(google-genai structured output)로 고품질 Anki Basic CSV를 생성합니다. `guideline.md`의 지침(모델/포맷/상태 플로우)을 따릅니다.
 
 ## 구성
 - `backend/`: FastAPI API (`/api/lectures`), Celery 워커, ElevenLabs/Gemini/S3 연동
@@ -55,7 +55,7 @@ npm run dev   # http://localhost:3000
 1. 파일 업로드 → S3(또는 로컬 `backend/storage/`) 저장, Job DB 기록(`lectures` 테이블)  
 2. Celery 워커가 상태를 `RUNNING_STT` → `RUNNING_LLM` → `GENERATING_CSV`로 갱신  
 3. ElevenLabs `POST /v1/speech-to-text`(`model_id=scribe_v1`) 호출 → transcript 저장  
-4. PDF 파싱(page별 title/body) → Gemini 3 Pro Preview에 슬라이드+transcript 전달 → `{cleaned_transcript, cards}` JSON  
+4. PDF 파싱(page별 title/body) → Gemini 3 Pro Preview(구글 GenAI structured output)로 슬라이드+transcript 전달 → `{cleaned_transcript, cards}` JSON  
 5. 카드 리스트를 Anki CSV(`;` 구분, `#separator/#columns/#html:false`)로 직렬화 후 S3/로컬 저장, `status=DONE`
 
 ## 기타
