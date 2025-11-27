@@ -79,7 +79,7 @@ export function FileUploadZone({ label, description, accept, file, onFile, onRem
               </div>
               <Button
                 variant="ghost"
-                size="icon"
+                size="sm"
                 className="h-8 w-8 text-slate-400 hover:text-red-500"
                 onClick={(e) => {
                   e.stopPropagation();
