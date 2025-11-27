@@ -11,42 +11,61 @@ type JobRoadmapProps = {
   generateCards?: boolean;
   generateNotes?: boolean;
   hasAudio?: boolean;
+  cardDone?: boolean;
+  noteDone?: boolean;
 };
 
 type StepState = "pending" | "active" | "done" | "skipped";
-
-const order: RoadmapStepId[] = ["START", "STT", "ANKI", "NOTES", "FINISH"];
-
-const normalizeStep = (status?: LectureStatus, currentStep?: string | null): RoadmapStepId => {
-  if (currentStep === "STT") return "STT";
-  if (currentStep === "ANKI_GEN") return "ANKI";
-  if (currentStep === "NOTE_GEN") return "NOTES";
-  if (currentStep === "FINISHED") return "FINISH";
-  switch (status) {
-    case "RUNNING_STT":
-      return "STT";
-    case "RUNNING_ANKI":
-    case "RUNNING_LLM":
-    case "GENERATING_CSV":
-      return "ANKI";
-    case "RUNNING_NOTES":
-      return "NOTES";
-    case "DONE":
-      return "FINISH";
-    default:
-      return "START";
-  }
-};
 
 export function JobRoadmap({
   status,
   currentStep,
   generateCards = true,
   generateNotes = false,
-  hasAudio = false
+  hasAudio = false,
+  cardDone = false,
+  noteDone = false
 }: JobRoadmapProps) {
-  const normalized = normalizeStep(status, currentStep);
-  const currentIndex = order.indexOf(normalized);
+  const isFailed = status === "FAILED";
+
+  const sttActive = status === "RUNNING_STT" || currentStep === "STT";
+  const sttDone = hasAudio ? !["PENDING", "RUNNING_STT"].includes(status || "PENDING") : true;
+
+  const cardsActive =
+    generateCards &&
+    (status === "RUNNING_ANKI" || status === "GENERATING_CSV" || currentStep === "ANKI_GEN" || currentStep === "GENERATING_CSV");
+  const notesActive = generateNotes && (status === "RUNNING_NOTES" || currentStep === "NOTE_GEN");
+
+  const cardsState: StepState = !generateCards
+    ? "skipped"
+    : cardDone
+      ? "done"
+      : cardsActive
+        ? "active"
+        : isFailed
+          ? "pending"
+          : "pending";
+
+  const notesState: StepState = !generateNotes
+    ? "skipped"
+    : noteDone
+      ? "done"
+      : notesActive
+        ? "active"
+        : isFailed
+          ? "pending"
+          : "pending";
+
+  const sttState: StepState = !hasAudio
+    ? "skipped"
+    : sttDone
+      ? "done"
+      : sttActive
+        ? "active"
+        : "pending";
+
+  const startState: StepState = status === "PENDING" ? "active" : "done";
+  const finishState: StepState = status === "DONE" ? "done" : isFailed ? "pending" : "pending";
 
   const steps: { id: RoadmapStepId; label: string; caption: string; enabled: boolean; icon: any }[] = [
     { id: "START", label: "Start", caption: "업로드 완료", enabled: true, icon: Upload },
@@ -56,14 +75,12 @@ export function JobRoadmap({
     { id: "FINISH", label: "Finish", caption: "완료", enabled: true, icon: Flag }
   ];
 
-  const stateFor = (step: (typeof steps)[number]): StepState => {
-    if (!step.enabled && step.id !== "START" && step.id !== "FINISH") return "skipped";
-    const idx = order.indexOf(step.id);
-    if (status === "DONE") return idx <= currentIndex ? "done" : "pending";
-    if (status === "FAILED") return idx < currentIndex ? "done" : "pending";
-    if (idx < currentIndex) return "done";
-    if (idx === currentIndex) return "active";
-    return "pending";
+  const stateMap: Record<RoadmapStepId, StepState> = {
+    START: startState,
+    STT: sttState,
+    ANKI: cardsState,
+    NOTES: notesState,
+    FINISH: finishState
   };
 
   return (
@@ -77,7 +94,7 @@ export function JobRoadmap({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
         {steps.map((step, idx) => {
           const Icon = step.icon;
-          const state = stateFor(step);
+          const state = stateMap[step.id] || "pending";
           const isLast = idx === steps.length - 1;
 
           return (

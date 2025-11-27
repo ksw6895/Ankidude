@@ -99,6 +99,8 @@ export default function JobPage() {
   const generateCards = data?.generate_cards ?? true;
   const generateNotes = data?.generate_notes ?? false;
   const hasAudio = data?.has_audio ?? false;
+  const cardDone = generateCards && !!csvDownloadLink;
+  const noteDone = generateNotes && !!data?.note_pdf_url;
 
   const csvDownloadPath = data?.csv_download_url || data?.download_url;
   const csvDownloadLink =
@@ -275,6 +277,8 @@ export default function JobPage() {
         generateCards={generateCards}
         generateNotes={generateNotes}
         hasAudio={hasAudio}
+        cardDone={cardDone}
+        noteDone={noteDone}
       />
 
       <div className="grid gap-4 md:grid-cols-4">
