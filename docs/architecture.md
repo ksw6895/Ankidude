@@ -6,18 +6,18 @@
 
 ```mermaid
 flowchart TD
-    A[enqueue process_lecture_job] --> B[Storage: ensure_local_file(slides_url, audio_url)]
-    B --> C[GeminiClient.upload_pdf]
-    B -->|optional audio| D[ElevenLabsClient: STT -> Transcript.raw_text]
-    C --> E[GeminiClient.clean_transcript(pdf, raw_text)]
+    A[enqueue process_lecture_job] --> B["Storage: ensure_local_file(slides_url, audio_url)"]
+    B --> C["GeminiClient.upload_pdf"]
+    B -->|optional audio| D["ElevenLabsClient: STT -> Transcript.raw_text"]
+    C --> E["GeminiClient.clean_transcript(pdf, raw_text)"]
     E --> F{generate_cards?}
-    F -->|yes| G[GeminiClient.generate_cards(pdf, cleaned)]
+    F -->|yes| G["GeminiClient.generate_cards(pdf, cleaned)"]
     F -->|no| H[skip]
     E --> I{generate_notes?}
-    I -->|yes| J[GeminiClient.generate_lecture_notes(pdf, cleaned)]
-    G --> K[render_csv(cards) -> storage (lecture.csv_url)]
-    J --> L[PdfNoteService.render_notes_pdf -> storage]
-    K --> M[Lecture status DONE]
+    I -->|yes| J["GeminiClient.generate_lecture_notes(pdf, cleaned)"]
+    G --> K["render_csv(cards) -> storage (lecture.csv_url)"]
+    J --> L["PdfNoteService.render_notes_pdf -> storage"]
+    K --> M["Lecture status DONE"]
     L --> M
 ```
 
