@@ -3,6 +3,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import shutil
+import tempfile
 
 from google import genai
 from google.genai import types
@@ -142,6 +144,25 @@ class GeminiClient:
         safe = name.encode("ascii", "ignore").decode() or "upload.pdf"
         return safe
 
+    @staticmethod
+    def _ensure_ascii_path(path: Path, safe_name: str) -> tuple[Path, Optional[Path]]:
+        """
+        Return an ASCII-safe path for upload.
+        If the filename has non-ASCII chars, copy to a temp dir with an ASCII name.
+        """
+        if path.name.isascii():
+            return path, None
+
+        tmp_dir = Path(tempfile.mkdtemp(prefix="ankidude_pdf_"))
+        # Preserve extension if missing on safe_name
+        ext = path.suffix or ".pdf"
+        upload_name = safe_name
+        if not upload_name.lower().endswith(ext.lower()):
+            upload_name = f"{upload_name}{ext}"
+        dest = tmp_dir / upload_name
+        shutil.copyfile(path, dest)
+        return dest, tmp_dir
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -166,11 +187,19 @@ class GeminiClient:
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
         safe_name = self._safe_display_name(display_name or path.name)
+        upload_path, temp_dir = self._ensure_ascii_path(path, safe_name)
         config = types.UploadFileConfig(
             display_name=safe_name,
             mime_type="application/pdf",
         )
-        uploaded = self.client.files.upload(file=str(path), config=config)
+        try:
+            uploaded = self.client.files.upload(file=str(upload_path), config=config)
+        finally:
+            if temp_dir:
+                try:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                except Exception:
+                    logger.debug("Failed to cleanup temp dir %s", temp_dir, exc_info=True)
         # mime_type may be inferred server-side; keep fallback to pdf for downstream parts
         return {"uri": uploaded.uri, "mime_type": uploaded.mime_type or "application/pdf"}
 
