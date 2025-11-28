@@ -75,6 +75,10 @@ class PdfNoteService:
     def _extend_page_with_note(self, page: fitz.Page, markdown_text: str) -> None:
         original_rect = page.rect
         padding = 16
+        # page.transformation_matrix converts PDF coords (origin bottom-left, y up)
+        # to MuPDF coords (origin top-left, y down) used by page.rect / drawing APIs.
+        ptm = page.transformation_matrix
+        ptm_inv = ~ptm
 
         # Landscape(가로): 아래로 20% 확장하여 바닥 영역에 노트를 배치
         if original_rect.width >= original_rect.height:
@@ -85,10 +89,11 @@ class PdfNoteService:
                 original_rect.x1,
                 original_rect.y1 + extra_height,
             )
-            page.set_mediabox(new_rect)
+            pdf_rect = new_rect * ptm_inv  # convert to PDF coords expected by mediabox APIs
+            page.set_mediabox(pdf_rect)
             try:
-                page.set_cropbox(new_rect)
-                page.set_bleedbox(new_rect)
+                page.set_cropbox(pdf_rect)
+                page.set_bleedbox(pdf_rect)
             except Exception:
                 logger.debug("Optional crop/bleed box update skipped on page %s", page.number + 1)
 
@@ -108,10 +113,11 @@ class PdfNoteService:
                 original_rect.x1 + extra_width,
                 original_rect.y1,
             )
-            page.set_mediabox(new_rect)
+            pdf_rect = new_rect * ptm_inv
+            page.set_mediabox(pdf_rect)
             try:
-                page.set_cropbox(new_rect)
-                page.set_bleedbox(new_rect)
+                page.set_cropbox(pdf_rect)
+                page.set_bleedbox(pdf_rect)
             except Exception:
                 logger.debug("Optional crop/bleed box update skipped on page %s", page.number + 1)
 
