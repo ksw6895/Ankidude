@@ -56,21 +56,21 @@ class PdfNoteService:
         original_rect = page.rect
         padding = 16
 
-        # Landscape(가로) -> 아래로 20% 확장, Portrait(세로) -> 오른쪽으로 30% 확장
+        # Landscape(가로) -> 아래(음수 y 방향)로 20% 확장, Portrait(세로) -> 오른쪽으로 30% 확장
         if original_rect.width >= original_rect.height:
-            new_height = original_rect.height * 1.2
+            extra_height = original_rect.height * 0.2
             new_rect = fitz.Rect(
                 original_rect.x0,
-                original_rect.y0,
+                original_rect.y0 - extra_height,
                 original_rect.x1,
-                original_rect.y0 + new_height,
+                original_rect.y1,
             )
             page.set_mediabox(new_rect)
             note_rect = fitz.Rect(
                 original_rect.x0 + padding,
-                original_rect.y1 + padding / 2,
+                new_rect.y0 + padding,
                 original_rect.x1 - padding,
-                new_rect.y1 - padding,
+                original_rect.y0 - padding / 2,
             )
         else:
             new_width = original_rect.width * 1.3
