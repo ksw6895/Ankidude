@@ -78,7 +78,6 @@ class PdfNoteService:
                 original_rect.x1,
                 original_rect.y1,
             )
-            page.set_mediabox(new_rect)
             note_rect = fitz.Rect(
                 original_rect.x0 + padding,
                 new_rect.y0 + padding,
@@ -93,13 +92,21 @@ class PdfNoteService:
                 original_rect.x0 + new_width,
                 original_rect.y1,
             )
-            page.set_mediabox(new_rect)
             note_rect = fitz.Rect(
                 original_rect.x1 + padding / 2,
                 original_rect.y0 + padding,
                 new_rect.x1 - padding,
                 original_rect.y1 - padding,
             )
+
+        # 확장 영역이 실제로 보이도록 mediabox/cropbox/bleedbox를 모두 업데이트
+        page.set_mediabox(new_rect)
+        try:
+            page.set_cropbox(new_rect)
+            page.set_bleedbox(new_rect)
+        except Exception:
+            # 일부 PDF에선 crop/bleed 설정이 없을 수 있음
+            logger.debug("Optional crop/bleed box update skipped on page %s", page.number + 1)
 
         if note_rect.height <= 0 or note_rect.width <= 0:
             logger.debug("Note rect is non-positive (w=%s, h=%s) on page %s", note_rect.width, note_rect.height, page.number + 1)
@@ -171,6 +178,9 @@ class PdfNoteService:
             if y + line_height > note_rect.y1:
                 return False
             rect = fitz.Rect(note_rect.x0, y, note_rect.x1, y + line_height)
-            page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0, **self.font_kwargs)
+            written = page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0, **self.font_kwargs)
+            if written == 0:
+                logger.debug("Text not written on page %s within rect %s", page.number + 1, rect)
+                return False
             y += line_height
         return True
