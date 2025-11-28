@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import fitz
 
@@ -20,17 +20,24 @@ class PdfNoteService:
     def __init__(self, storage: StorageManager):
         self.storage = storage
         self.font_path = self._resolve_font_path()
-        self.font_kwargs: Dict[str, object] = {"fontfile": str(self.font_path)} if self.font_path else {}
+        self.font_name = "ankidude_notokr" if self.font_path else "helv"
 
     def _resolve_font_path(self) -> Optional[Path]:
         """
         Locate the bundled Korean-capable font.
         Falls back to PyMuPDF's default (may lose glyphs) if not found.
         """
-        candidate = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoSansKR-Regular.otf"
-        if candidate.exists():
-            return candidate
-        logger.warning("Korean font asset missing at %s; falling back to default font", candidate)
+        service_dir = Path(__file__).resolve().parent
+        candidates = [
+            service_dir / ".." / "assets" / "fonts" / "NotoSansKR-Regular.otf",  # backend/app/assets/...
+            service_dir.parent / "assets" / "fonts" / "NotoSansKR-Regular.otf",  # backend/app/assets/...
+        ]
+        for candidate in candidates:
+            candidate = candidate.resolve()
+            if candidate.exists():
+                logger.info("Using Korean font at %s", candidate)
+                return candidate
+        logger.warning("Korean font asset missing; falling back to default font (may lose glyphs)")
         return None
 
     def render_notes_pdf(
@@ -178,7 +185,15 @@ class PdfNoteService:
             if y + line_height > note_rect.y1:
                 return False
             rect = fitz.Rect(note_rect.x0, y, note_rect.x1, y + line_height)
-            written = page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0, **self.font_kwargs)
+            fontname = self.font_name
+            if self.font_path:
+                try:
+                    page.insert_font(fontname=fontname, fontfile=str(self.font_path))
+                except Exception:
+                    logger.debug("Font registration failed on page %s, falling back to helv", page.number + 1)
+                    fontname = "helv"
+
+            written = page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0, fontname=fontname)
             if written == 0:
                 logger.debug("Text not written on page %s within rect %s", page.number + 1, rect)
                 return False
