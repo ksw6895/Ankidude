@@ -85,10 +85,12 @@ Your goal is to **transcribe and organize the professor's spoken words (transcri
 - Use the slide text only as a "context anchor" to decide *which page* the professor is currently talking about.
 
 **Format & Style Rules:**
-- **Language:** Write primarily in **Korean** (keep medical terms in English or format as 'Korean(English)').
-- **Style:** Use concise bullet points, bold key terms, and short headers. Make it look like high-quality study notes.
-- **Length Constraint:** Keep each page's note under **600 characters** to fit in the PDF margin. If the professor speaks a lot on one page, prioritize the most important 'high-yield' information for exams.
-- **No Hallucination:** If the transcript is silent about a slide, do not invent content. Just summarize the slide text briefly in that specific case.
+- **Language/Tone:** Korean 중심, 존댓말 금지. 문장은 동사/형용사 평서형으로 끝내기(`~다`, `~한다`, `~해야 한다`). 체언 종결형·명사형 어미(`~함`, `~필요`) 금지.
+- **Bullets:** 각 불릿은 1~2개의 완전한 문장으로 작성(문장 파편/키워드 나열 금지).
+- **Depth:** 교수의 설명(기전/이유/결과)과 예시를 넣어 핵심을 풀어 쓰되, 과도하게 요약하지 말 것.
+- **Meta remarks:** 시험·퀴즈·출제 언급은 별도 불릿으로 포함하고 `[EXAM]` 접두사를 붙인다. 교수의 강조/경고는 `[HIGHLIGHT]` 접두사로 표시한다. 가벼운 농담·메타 코멘트가 학습에 도움이 되면 `[ASIDE]`로 짧게 남긴다.
+- **Length:** 페이지당 900자 이하를 목표로 하되 중요한 내용은 억지로 줄이지 말 것. 너무 길면 덜 중요한 부분만 축약한다.
+- **No Hallucination:** 대본이 침묵하는 슬라이드는 노트를 비워두거나, 필요하면 슬라이드에 이미 적힌 핵심만 한 줄로 적는다(새 정보 창작 금지).
 
 Response schema (JSON):
 {{
