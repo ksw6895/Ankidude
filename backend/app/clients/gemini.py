@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from google import genai
+from google.genai import types
 from pydantic import ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -158,9 +159,13 @@ class GeminiClient:
         if not path.exists():
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
-        config = {"mime_type": "application/pdf", "display_name": display_name or path.name}
+        config = types.UploadFileConfig(
+            display_name=display_name or path.name,
+            mime_type="application/pdf",
+        )
         uploaded = self.client.files.upload(file=str(path), config=config)
-        return {"uri": uploaded.uri, "mime_type": uploaded.mime_type}
+        # mime_type may be inferred server-side; keep fallback to pdf for downstream parts
+        return {"uri": uploaded.uri, "mime_type": uploaded.mime_type or "application/pdf"}
 
     @retry(
         wait=wait_exponential(multiplier=1, min=1, max=10),
