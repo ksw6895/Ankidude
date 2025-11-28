@@ -1,10 +1,11 @@
 import json
 import logging
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 import shutil
 import tempfile
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from google import genai
 from google.genai import types
@@ -169,6 +170,7 @@ class GeminiClient:
         model_id: Optional[str] = None,
         *,
         max_output_tokens: int = 16000,
+        request_timeout: int = 300,
         client: Optional[genai.Client] = None,
     ):
         settings = get_settings()
@@ -176,6 +178,7 @@ class GeminiClient:
         self.api_key = api_key or settings.gemini_api_key or env_api_key
         self.model_id = model_id or settings.gemini_model_id
         self.max_output_tokens = max_output_tokens
+        self.request_timeout = request_timeout
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY is required")
 
@@ -192,14 +195,20 @@ class GeminiClient:
             display_name=safe_name,
             mime_type="application/pdf",
         )
+        start = time.monotonic()
         try:
-            uploaded = self.client.files.upload(file=str(upload_path), config=config)
+            uploaded = self.client.files.upload(
+                file=str(upload_path),
+                config=config,
+                request_options={"timeout": self.request_timeout},
+            )
         finally:
             if temp_dir:
                 try:
                     shutil.rmtree(temp_dir, ignore_errors=True)
                 except Exception:
                     logger.debug("Failed to cleanup temp dir %s", temp_dir, exc_info=True)
+        logger.info("Gemini upload completed in %.1fs", time.monotonic() - start)
         # mime_type may be inferred server-side; keep fallback to pdf for downstream parts
         return {"uri": uploaded.uri, "mime_type": uploaded.mime_type or "application/pdf"}
 
@@ -221,12 +230,14 @@ class GeminiClient:
             "response_json_schema": LectureCardsOutput.model_json_schema(),
             "max_output_tokens": self.max_output_tokens,
         }
-
+        start = time.monotonic()
         response = self.client.models.generate_content(
             model=self.model_id,
             contents=[{"role": "user", "parts": parts}],
             config=config,
+            request_options={"timeout": self.request_timeout},
         )
+        logger.info("Gemini cards call finished in %.1fs", time.monotonic() - start)
 
         if not response or not response.text:
             logger.error(
@@ -272,12 +283,14 @@ class GeminiClient:
             "response_json_schema": LectureNotesOutput.model_json_schema(),
             "max_output_tokens": self.max_output_tokens,
         }
-
+        start = time.monotonic()
         response = self.client.models.generate_content(
             model=self.model_id,
             contents=[{"role": "user", "parts": parts}],
             config=config,
+            request_options={"timeout": self.request_timeout},
         )
+        logger.info("Gemini notes call finished in %.1fs", time.monotonic() - start)
 
         if not response or not response.text:
             logger.error(
@@ -335,12 +348,14 @@ class GeminiClient:
             "response_json_schema": CleanTranscriptOutput.model_json_schema(),
             "max_output_tokens": self.max_output_tokens,
         }
-
+        start = time.monotonic()
         response = self.client.models.generate_content(
             model=self.model_id,
             contents=[{"role": "user", "parts": parts}],
             config=config,
+            request_options={"timeout": self.request_timeout},
         )
+        logger.info("Gemini clean call finished in %.1fs", time.monotonic() - start)
 
         if not response or not response.text:
             logger.error(
