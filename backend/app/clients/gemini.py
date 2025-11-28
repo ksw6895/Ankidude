@@ -75,6 +75,13 @@ Metadata:
 
 def _build_note_parts(pdf_file: Dict[str, str], transcript_text: str, meta: Dict) -> List[Dict[str, Any]]:
     meta_block = _build_meta_block(meta)
+    page_count = meta.get("page_count")
+    page_rule = (
+        f"- This PDF has {page_count} pages (1-based). Set `page_number` only within 1..{page_count}. "
+        "If unsure, choose the closest page for the topic."
+        if page_count
+        else "- Use the PDF order; page_number must be the actual PDF page index (1-based)."
+    )
     prompt = f"""
 You are an elite medical student taking perfectly organized notes during a lecture.
 Your goal is to **transcribe and organize the professor's spoken words (transcript)** onto the correct PDF slide pages.
@@ -84,6 +91,7 @@ Your goal is to **transcribe and organize the professor's spoken words (transcri
 - Ignore any page numbers printed on the slide graphic; return the real PDF page index in `page_number`.
 - **Your main source is the [TRANSCRIPT_RAW].** Extract explanations, clinical tips, and emphasized details from the speech and place them on the PDF page where that topic is discussed.
 - Do NOT just summarize the text written on the slide. The user already has the slide; slide text is only a context anchor to decide the current page.
+{page_rule}
 
 **Format & Style Rules:**
 - **Language/Tone:** Korean 중심, 존댓말 금지. 문장은 동사/형용사 평서형으로 끝내기(`~다`, `~한다`, `~해야 한다`). 체언 종결형·명사형 어미(`~함`, `~필요`) 금지.
