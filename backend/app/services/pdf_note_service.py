@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import fitz
 
@@ -19,6 +19,19 @@ class PdfNoteService:
 
     def __init__(self, storage: StorageManager):
         self.storage = storage
+        self.font_path = self._resolve_font_path()
+        self.font_kwargs: Dict[str, object] = {"fontfile": str(self.font_path)} if self.font_path else {}
+
+    def _resolve_font_path(self) -> Optional[Path]:
+        """
+        Locate the bundled Korean-capable font.
+        Falls back to PyMuPDF's default (may lose glyphs) if not found.
+        """
+        candidate = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoSansKR-Regular.otf"
+        if candidate.exists():
+            return candidate
+        logger.warning("Korean font asset missing at %s; falling back to default font", candidate)
+        return None
 
     def render_notes_pdf(
         self,
@@ -158,6 +171,6 @@ class PdfNoteService:
             if y + line_height > note_rect.y1:
                 return False
             rect = fitz.Rect(note_rect.x0, y, note_rect.x1, y + line_height)
-            page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0)
+            page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0, **self.font_kwargs)
             y += line_height
         return True

@@ -1,6 +1,7 @@
 import { CheckCircle2, Flag, Loader2, NotebookPen, Sparkles, Upload, Waves } from "lucide-react";
 
 import { LectureStatus } from "../lib/api";
+import { deriveUiStep, UiStep } from "../lib/status";
 import { cn } from "../lib/utils";
 
 type RoadmapStepId = "START" | "STT" | "CLEAN" | "ANKI" | "NOTES" | "FINISH";
@@ -30,52 +31,57 @@ export function JobRoadmap({
 }: JobRoadmapProps) {
   const isFailed = status === "FAILED";
 
-  const sttActive = status === "RUNNING_STT" || currentStep === "STT";
-  const sttDone = hasAudio ? !["PENDING", "RUNNING_STT"].includes(status || "PENDING") : true;
+  const stepOrder: RoadmapStepId[] = ["START", "STT", "CLEAN", "ANKI", "NOTES", "FINISH"];
 
-  const cleanActive = currentStep === "CLEAN_TRANSCRIPT";
-  const progressedAfterClean = ["RUNNING_ANKI", "RUNNING_LLM", "GENERATING_CSV", "RUNNING_NOTES", "DONE"].includes(
-    status || ""
-  );
-  const cleanDone = cleanDoneProp || progressedAfterClean || cardDone || noteDone || status === "DONE";
+  const toRoadmapStep = (step: UiStep): RoadmapStepId => {
+    switch (step) {
+      case "STT":
+        return "STT";
+      case "CLEAN":
+        return "CLEAN";
+      case "ANKI":
+      case "CSV":
+        return "ANKI";
+      case "NOTES":
+        return "NOTES";
+      case "FINISH":
+      case "FAILED":
+        return "FINISH";
+      case "START":
+      default:
+        return "START";
+    }
+  };
 
-  const cardsActive =
-    generateCards &&
-    (status === "RUNNING_ANKI" || status === "GENERATING_CSV" || currentStep === "ANKI_GEN" || currentStep === "GENERATING_CSV");
-  const notesActive = generateNotes && (status === "RUNNING_NOTES" || currentStep === "NOTE_GEN");
+  const derivedStep = deriveUiStep(status, currentStep);
+  const progressStepRaw: UiStep = status === "FAILED" ? deriveUiStep(undefined, currentStep) : derivedStep;
+  const activeStep = toRoadmapStep(progressStepRaw);
+  const activeIndex = stepOrder.indexOf(activeStep);
+  const safeActiveIndex = activeIndex === -1 ? 0 : activeIndex;
 
-  const cardsState: StepState = !generateCards
-    ? "skipped"
-    : cardDone
-      ? "done"
-      : cardsActive
-        ? "active"
-        : isFailed
-          ? "pending"
-          : "pending";
+  const isSkipped = (id: RoadmapStepId) =>
+    (id === "STT" && !hasAudio) || (id === "ANKI" && !generateCards) || (id === "NOTES" && !generateNotes);
 
-  const notesState: StepState = !generateNotes
-    ? "skipped"
-    : noteDone
-      ? "done"
-      : notesActive
-        ? "active"
-        : isFailed
-          ? "pending"
-          : "pending";
+  const isOverrideDone = (id: RoadmapStepId) => {
+    if (id === "ANKI" && cardDone) return true;
+    if (id === "NOTES" && noteDone) return true;
+    if (id === "CLEAN" && cleanDoneProp) return true;
+    return false;
+  };
 
-  const sttState: StepState = !hasAudio
-    ? "skipped"
-    : sttDone
-      ? "done"
-      : sttActive
-        ? "active"
-        : "pending";
-
-  const cleanState: StepState = cleanDone ? "done" : cleanActive ? "active" : sttState === "done" ? "pending" : sttState;
-
-  const startState: StepState = status === "PENDING" ? "active" : "done";
-  const finishState: StepState = status === "DONE" ? "done" : isFailed ? "pending" : "pending";
+  const stateFor = (id: RoadmapStepId): StepState => {
+    if (isSkipped(id)) return "skipped";
+    const idx = stepOrder.indexOf(id);
+    const doneByProgress = idx < safeActiveIndex || (progressStepRaw === "FINISH" && !isFailed);
+    if (isFailed) {
+      if (idx < safeActiveIndex) return "done";
+      if (idx === safeActiveIndex) return "pending";
+      return "pending";
+    }
+    if (isOverrideDone(id) || doneByProgress) return "done";
+    if (idx === safeActiveIndex) return "active";
+    return "pending";
+  };
 
   const steps: { id: RoadmapStepId; label: string; caption: string; enabled: boolean; icon: any }[] = [
     { id: "START", label: "Start", caption: "업로드 완료", enabled: true, icon: Upload },
@@ -85,15 +91,6 @@ export function JobRoadmap({
     { id: "NOTES", label: "Writing Notes", caption: "Gemini -> PDF 편집", enabled: generateNotes, icon: NotebookPen },
     { id: "FINISH", label: "Finish", caption: "완료", enabled: true, icon: Flag }
   ];
-
-  const stateMap: Record<RoadmapStepId, StepState> = {
-    START: startState,
-    STT: sttState,
-    CLEAN: cleanState,
-    ANKI: cardsState,
-    NOTES: notesState,
-    FINISH: finishState
-  };
 
   return (
     <div className="rounded-2xl border border-white/60 bg-white/70 p-4 shadow-inner">
@@ -106,7 +103,7 @@ export function JobRoadmap({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
         {steps.map((step, idx) => {
           const Icon = step.icon;
-          const state = stateMap[step.id] || "pending";
+          const state = stateFor(step.id);
           const isLast = idx === steps.length - 1;
 
           return (

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   BrainCircuit,
   CheckCircle2,
   CircleDashed,
@@ -26,28 +27,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui
 import { useToast } from "../../../components/ui/use-toast";
 import { Flashcard, buildCsv, parseCsvCards } from "../../../lib/csv";
 import { useJobHistory } from "../../../lib/history";
-import { fetchCsvText, fetchLecture, LectureStatus, LectureStatusResponse, withBase } from "../../../lib/api";
+import { fetchCsvText, fetchLecture, LectureStatusResponse, withBase } from "../../../lib/api";
+import { deriveUiStep, stepLabels, UiStep } from "../../../lib/status";
 import { cn } from "../../../lib/utils";
 import { loadAdminPassword, saveAdminPassword } from "../../../lib/admin";
 
-const statusMap: Record<LectureStatus, string> = {
-  PENDING: "대기 중",
-  RUNNING_STT: "음성 처리 중",
-  RUNNING_ANKI: "Anki 생성 중",
-  RUNNING_LLM: "텍스트 정제 중",
-  GENERATING_CSV: "CSV 패킹 중",
-  RUNNING_NOTES: "노트 작성 중",
-  DONE: "완료",
-  FAILED: "실패"
-};
-
-const iconMap: Partial<Record<LectureStatus, any>> = {
-  RUNNING_STT: Mic,
-  RUNNING_ANKI: Sparkles,
-  RUNNING_LLM: BrainCircuit,
-  GENERATING_CSV: Layers,
-  RUNNING_NOTES: NotebookPen,
-  DONE: CheckCircle2
+const stepIconMap: Record<UiStep, any> = {
+  START: CircleDashed,
+  STT: Mic,
+  CLEAN: BrainCircuit,
+  ANKI: Sparkles,
+  CSV: Layers,
+  NOTES: NotebookPen,
+  FINISH: CheckCircle2,
+  FAILED: AlertTriangle
 };
 
 export default function JobPage() {
@@ -110,7 +103,7 @@ export default function JobPage() {
   const noteDone = generateNotes && !!data?.note_pdf_url;
   const cleanDone =
     data?.status === "DONE" ||
-    ["RUNNING_ANKI", "RUNNING_LLM", "GENERATING_CSV", "RUNNING_NOTES"].includes(data?.status || "") ||
+    ["ANKI_GEN", "GENERATING_CSV", "NOTE_GEN", "FINISHED"].includes(data?.current_step || "") ||
     cardDone ||
     noteDone;
 
@@ -202,14 +195,10 @@ export default function JobPage() {
     }
   };
 
-  const StatusIcon =
-    iconMap[data?.status as LectureStatus] ||
-    (data?.status === "DONE" ? CheckCircle2 : data?.status === "PENDING" ? CircleDashed : Loader2);
-  const isProcessing = data
-    ? ["PENDING", "RUNNING_STT", "RUNNING_ANKI", "RUNNING_LLM", "GENERATING_CSV", "RUNNING_NOTES"].includes(
-        data.status
-      )
-    : true;
+  const activeStep = deriveUiStep(data?.status, data?.current_step);
+  const statusLabel = stepLabels[activeStep];
+  const StatusIcon = stepIconMap[activeStep] || Loader2;
+  const isProcessing = !["FINISH", "FAILED"].includes(activeStep);
 
   return (
     <div className="mx-auto space-y-8">
@@ -226,7 +215,7 @@ export default function JobPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              {statusMap[data?.status || "PENDING"]}
+              {statusLabel}
             </h1>
             <p className="mt-0.5 text-xs font-medium uppercase tracking-wider text-slate-400">
               Job: {jobId?.slice(0, 8)}
@@ -343,7 +332,7 @@ export default function JobPage() {
                 <p className="text-xs text-slate-500">
                   {data?.status === "DONE"
                     ? `생성된 카드 ${data?.card_count ?? cards.length ?? 0}개`
-                    : statusMap[data?.status || "PENDING"]}
+                    : statusLabel}
                 </p>
               </div>
               <Button
@@ -377,7 +366,7 @@ export default function JobPage() {
               <div>
                 <p className="text-sm font-semibold text-slate-900">강의 노트 PDF</p>
                 <p className="text-xs text-slate-500">
-                  {data?.status === "DONE" && pdfDownloadLink ? "필기 완료" : statusMap[data?.status || "PENDING"]}
+                  {data?.status === "DONE" && pdfDownloadLink ? "필기 완료" : statusLabel}
                 </p>
               </div>
               <Button
