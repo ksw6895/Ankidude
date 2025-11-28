@@ -6,17 +6,17 @@
 
 ```mermaid
 flowchart TD
-    A[enqueue process_lecture_job] --> B[Storage<br/>ensure_local_file(slides_url, audio_url)]
+    A[enqueue process_lecture_job] --> B[Storage: ensure_local_file(slides_url, audio_url)]
     B --> C[GeminiClient.upload_pdf]
-    B -->|optional audio| D[ElevenLabsClient<br/>STT -> Transcript.raw_text]
+    B -->|optional audio| D[ElevenLabsClient: STT -> Transcript.raw_text]
     C --> E[GeminiClient.clean_transcript(pdf, raw_text)]
     E --> F{generate_cards?}
     F -->|yes| G[GeminiClient.generate_cards(pdf, cleaned)]
     F -->|no| H[skip]
     E --> I{generate_notes?}
     I -->|yes| J[GeminiClient.generate_lecture_notes(pdf, cleaned)]
-    G --> K[render_csv(cards) -> storage<br/>lecture.csv_url]
-    J --> L[PdfNoteService.render_notes_pdf<br/>embed notes into PDF -> storage]
+    G --> K[render_csv(cards) -> storage (lecture.csv_url)]
+    J --> L[PdfNoteService.render_notes_pdf -> storage]
     K --> M[Lecture status DONE]
     L --> M
 ```
@@ -29,9 +29,9 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    PDF[(Slide PDF<br/>application/pdf)] --> P[Gemini parts]
+    PDF[(Slide PDF, application/pdf)] --> P[Gemini parts]
     TXT[[TRANSCRIPT_RAW]] --> P
-    META[meta block<br/>(title/subject/professor)] --> P
+    META[meta block (title/subject/professor)] --> P
     P --> GC[generate_cards\nJSON schema: LectureCardsOutput]
     P --> GN[generate_lecture_notes\nJSON schema: LectureNotesOutput]
     P --> CT[clean_transcript\nJSON schema: CleanTranscriptOutput]
