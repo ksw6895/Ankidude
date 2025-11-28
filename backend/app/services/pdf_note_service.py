@@ -83,9 +83,9 @@ class PdfNoteService:
         ptm = page.transformation_matrix
         ptm_inv = ~ptm
 
-        # Landscape(가로): 아래로 20% 확장하여 바닥 영역에 노트를 배치
+        # Landscape(가로): 아래로 30% 확장하여 바닥 영역에 노트를 배치
         if original_rect.width >= original_rect.height:
-            extra_height = original_rect.height * 0.2
+            extra_height = original_rect.height * 0.3
             new_rect = fitz.Rect(
                 original_rect.x0,
                 original_rect.y0,
