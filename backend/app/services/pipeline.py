@@ -93,6 +93,14 @@ def process_lecture_job(
         logger.info("Job %s: Gemini 정제 단계 시작", lecture_id)
 
         cleaned_text = gemini_client.clean_transcript(slides, transcript.raw_text or "", meta=meta)
+        if cleaned_text:
+            preview = cleaned_text[:500]
+            suffix = "..." if len(cleaned_text) > 500 else ""
+            logger.info("======== [Cleaned Transcript Preview] Job %s ========", lecture_id)
+            logger.info("%s%s", preview, suffix)
+            logger.info("==============================================================")
+        else:
+            logger.warning("Job %s: Cleaned transcript is empty.", lecture_id)
         transcript.cleaned_text = cleaned_text or transcript.raw_text or ""
         db.add(transcript)
         db.commit()

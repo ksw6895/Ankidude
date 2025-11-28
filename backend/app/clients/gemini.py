@@ -76,27 +76,35 @@ def _build_note_prompt(slides: List[Dict], transcript_text: str, meta: Dict) -> 
     )
 
     return f"""
-You are a study note writer. Using the slides and transcript together, write concise Markdown notes for each slide page.
+You are an elite medical student taking perfectly organized notes during a lecture.
+Your goal is to **transcribe and organize the professor's spoken words (transcript)** onto the corresponding slide pages.
 
-Language:
-- 기본은 한국어로 작성하되, 의학 전문용어는 영어를 괄호에 병기하세요. (예: 파킨슨병(Parkinson's disease))
+**CRITICAL INSTRUCTION:**
+- Do NOT just summarize the text written on the slide. The user already has the slide.
+- **Your main source is the [TRANSCRIPT_RAW].** You must extract explanations, clinical tips, and emphasized details from the speech and place them on the page where that topic is discussed.
+- Use the slide text only as a "context anchor" to decide *which page* the professor is currently talking about.
 
-Rules:
-- Match notes to each page number. Use slide text as the anchor; use transcript only to clarify wording.
-- Keep each page's content within 500 Korean characters (concise bullets and short headers).
-- Use Markdown (headers, bold emphasis, bullet lists). Do not include raw HTML.
-- Stay faithful to provided material. Avoid hallucinations.
+**Format & Style Rules:**
+- **Language:** Write primarily in **Korean** (keep medical terms in English or format as 'Korean(English)').
+- **Style:** Use concise bullet points, bold key terms, and short headers. Make it look like high-quality study notes.
+- **Length Constraint:** Keep each page's note under **600 characters** to fit in the PDF margin. If the professor speaks a lot on one page, prioritize the most important 'high-yield' information for exams.
+- **No Hallucination:** If the transcript is silent about a slide, do not invent content. Just summarize the slide text briefly in that specific case.
 
-Response schema is enforced with a top-level array "notes" containing objects:
-- page_number: integer page index starting at 1
-- content: Markdown string (<=500 chars) for that page
+Response schema (JSON):
+{{
+  "notes": [
+    {{ "page_number": 1, "content": "- Professor's opening remarks...\\n- Key concept explained: ..." }},
+    ...
+  ]
+}}
 
-Metadata:
+**Metadata:**
 {meta_block}
 
+**Slides (Context Anchors):**
 {_serialize_slides(slides)}
 
-[TRANSCRIPT_RAW]
+**[TRANSCRIPT_RAW] (Source of Content):**
 {transcript_text}
 """
 
