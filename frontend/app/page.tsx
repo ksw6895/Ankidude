@@ -109,9 +109,10 @@ export default function HomePage() {
           transition={{ delay: 0.05 }}
           className="text-5xl font-extrabold tracking-tight text-slate-900 md:text-6xl"
         >
-          슬라이드만 올려도 카드 완성.{" "}
+          Slides in, cards and notes out.{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-br from-teal-600 to-teal-900">
-            녹음까지 주면 더 정확해집니다.
+            <br className="hidden md:block" />
+            Add audio for sharper details.
           </span>
         </motion.h1>
 
