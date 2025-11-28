@@ -206,6 +206,9 @@ class PdfNoteService:
         lines: list[tuple[str, tuple[float, float, float]]],
         font_size: int,
     ) -> bool:
+        # Fill note area with white so text is visible even on transparent page extensions.
+        page.draw_rect(note_rect, color=None, fill=(1, 1, 1), overlay=True)
+
         line_height = font_size * 1.25
         y = note_rect.y0
         for text, color in lines:
