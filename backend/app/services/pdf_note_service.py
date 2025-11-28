@@ -31,20 +31,13 @@ class PdfNoteService:
         pdf_path = ensure_local_file(slides_url)
         doc = fitz.open(pdf_path)
 
-        total_pages = len(doc)
-        note_map: dict[int, list[str]] = {}
-        for note in notes:
-            target = min(max(note.page_number, 1), total_pages)
-            if target not in note_map:
-                note_map[target] = []
-            note_map[target].append(note.content)
+        note_map = {note.page_number: note.content for note in notes}
 
         rendered = 0
         for page_index, page in enumerate(doc, start=1):
             if page_index not in note_map:
                 continue
-            merged = "\n\n---\n\n".join(note_map[page_index])
-            self._extend_page_with_note(page, merged)
+            self._extend_page_with_note(page, note_map[page_index])
             rendered += 1
 
         pdf_bytes = doc.tobytes(deflate=True)

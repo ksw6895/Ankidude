@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 
-import fitz
 from sqlalchemy.orm import Session
 
 from app.clients.elevenlabs import ElevenLabsClient
@@ -41,12 +40,6 @@ def process_lecture_job(
         if slides_path.parent.name.startswith("ankidude_"):
             temp_paths.append(slides_path)
         pdf_file = gemini_client.upload_pdf(slides_path)
-        try:
-            with fitz.open(slides_path) as doc:
-                page_count = len(doc)
-        except Exception:
-            page_count = None
-            logger.warning("Job %s: failed to detect PDF page count", lecture_id, exc_info=True)
 
         transcript = db.query(Transcript).filter_by(lecture_id=lecture.id).first()
         if not transcript:
@@ -85,8 +78,6 @@ def process_lecture_job(
             "subject": lecture.subject,
             "professor": lecture.professor,
         }
-        if page_count:
-            meta["page_count"] = page_count
 
         # 1) Transcript 정제
         lecture.status = (
@@ -184,6 +175,18 @@ def process_lecture_job(
             db.commit()
 
             notes = results["notes"]
+            logger.info(
+                "Job %s: Gemini notes returned count=%s, sample=%s",
+                lecture_id,
+                len(notes),
+                [
+                    {
+                        "page_number": n.page_number,
+                        "preview": (n.content or "")[:120] + ("..." if n.content and len(n.content) > 120 else ""),
+                    }
+                    for n in notes[:3]
+                ],
+            )
             pdf_service = PdfNoteService(storage)
             pdf_url, rendered_pages = pdf_service.render_notes_pdf(
                 lecture.slides_url,
