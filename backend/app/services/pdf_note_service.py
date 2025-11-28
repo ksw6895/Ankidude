@@ -123,6 +123,15 @@ class PdfNoteService:
         if not lines:
             logger.debug("No note lines to render on page %s", page.number + 1)
             return
+        logger.info(
+            "Rendering notes on page %s (lines=%s, note_rect=%.1fx%.1f @ %.1f,%.1f)",
+            page.number + 1,
+            len(lines),
+            note_rect.width,
+            note_rect.height,
+            note_rect.x0,
+            note_rect.y0,
+        )
 
         min_font, max_font = 8, 11
         drawn = False
@@ -195,7 +204,14 @@ class PdfNoteService:
 
             written = page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0, fontname=fontname)
             if written == 0:
-                logger.debug("Text not written on page %s within rect %s", page.number + 1, rect)
+                logger.warning(
+                    "Text not written (len=%s, font=%s, size=%s) on page %s rect=%s",
+                    len(text),
+                    fontname,
+                    font_size,
+                    page.number + 1,
+                    rect,
+                )
                 return False
             y += line_height
         return True
