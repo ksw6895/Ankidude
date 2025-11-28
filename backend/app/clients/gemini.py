@@ -136,6 +136,12 @@ class GeminiStructuredOutputError(RuntimeError):
 
 
 class GeminiClient:
+    @staticmethod
+    def _safe_display_name(name: str) -> str:
+        """Make display names ASCII-safe for HTTP headers."""
+        safe = name.encode("ascii", "ignore").decode() or "upload.pdf"
+        return safe
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -159,8 +165,9 @@ class GeminiClient:
         if not path.exists():
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
+        safe_name = self._safe_display_name(display_name or path.name)
         config = types.UploadFileConfig(
-            display_name=display_name or path.name,
+            display_name=safe_name,
             mime_type="application/pdf",
         )
         uploaded = self.client.files.upload(file=str(path), config=config)
