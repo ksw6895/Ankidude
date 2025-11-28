@@ -158,11 +158,8 @@ class GeminiClient:
         if not path.exists():
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
-        uploaded = self.client.files.upload(
-            file=str(path),
-            mime_type="application/pdf",
-            display_name=display_name or path.name,
-        )
+        config = {"mime_type": "application/pdf", "display_name": display_name or path.name}
+        uploaded = self.client.files.upload(file=str(path), config=config)
         return {"uri": uploaded.uri, "mime_type": uploaded.mime_type}
 
     @retry(
