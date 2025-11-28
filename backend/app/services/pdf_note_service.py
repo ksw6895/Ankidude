@@ -88,8 +88,13 @@ class PdfNoteService:
                 original_rect.y1 - padding,
             )
 
+        if note_rect.height <= 0 or note_rect.width <= 0:
+            logger.debug("Note rect is non-positive (w=%s, h=%s) on page %s", note_rect.width, note_rect.height, page.number + 1)
+            return
+
         lines = self._prepare_colored_lines(markdown_text)
         if not lines:
+            logger.debug("No note lines to render on page %s", page.number + 1)
             return
 
         min_font, max_font = 8, 11
