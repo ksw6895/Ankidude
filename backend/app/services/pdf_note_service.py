@@ -125,7 +125,7 @@ class PdfNoteService:
             return
         # 임시: 노트 영역을 시각화해서 좌표 문제 여부를 확인한다.
         try:
-            page.draw_rect(note_rect, fill=(0.95, 0.95, 0.95), color=None)
+            page.draw_rect(note_rect, fill=(0.95, 0.95, 0.95), color=None, overlay=True)
         except Exception:
             logger.debug("Failed to draw debug rect on page %s", page.number + 1, exc_info=True)
         logger.info(
@@ -207,7 +207,15 @@ class PdfNoteService:
                     logger.debug("Font registration failed on page %s, falling back to helv", page.number + 1)
                     fontname = "helv"
 
-            written = page.insert_textbox(rect, text, fontsize=font_size, color=color, align=0, fontname=fontname)
+            written = page.insert_textbox(
+                rect,
+                text,
+                fontsize=font_size,
+                color=color,
+                align=0,
+                fontname=fontname,
+                overlay=True,  # ensure text stays above slide content
+            )
             if written == 0:
                 logger.warning(
                     "Text not written (len=%s, font=%s, size=%s) on page %s rect=%s",
