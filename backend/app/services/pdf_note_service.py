@@ -76,7 +76,7 @@ class PdfNoteService:
         original_rect = page.rect
         padding = 16
 
-        # Landscape(가로) -> 아래(음수 y 방향)로 20% 확장, Portrait(세로) -> 오른쪽으로 30% 확장
+        # Landscape(가로): 아래로 20% 확장하여 바닥 영역에 노트를 배치
         if original_rect.width >= original_rect.height:
             extra_height = original_rect.height * 0.2
             new_rect = fitz.Rect(
@@ -85,35 +85,44 @@ class PdfNoteService:
                 original_rect.x1,
                 original_rect.y1 + extra_height,
             )
+            page.set_mediabox(new_rect)
+            try:
+                page.set_cropbox(new_rect)
+                page.set_bleedbox(new_rect)
+            except Exception:
+                logger.debug("Optional crop/bleed box update skipped on page %s", page.number + 1)
+
+            rect_after = page.rect
             note_rect = fitz.Rect(
-                original_rect.x0 + padding,
-                original_rect.y1 + padding,
-                original_rect.x1 - padding,
-                new_rect.y1 - padding,
+                rect_after.x0 + padding,
+                rect_after.y1 - extra_height + padding,
+                rect_after.x1 - padding,
+                rect_after.y1 - padding,
             )
+        # Portrait(세로): 오른쪽으로 30% 확장하여 우측 영역에 노트 배치
         else:
-            new_width = original_rect.width * 1.3
+            extra_width = original_rect.width * 0.3
             new_rect = fitz.Rect(
                 original_rect.x0,
                 original_rect.y0,
-                original_rect.x0 + new_width,
+                original_rect.x1 + extra_width,
                 original_rect.y1,
             )
+            page.set_mediabox(new_rect)
+            try:
+                page.set_cropbox(new_rect)
+                page.set_bleedbox(new_rect)
+            except Exception:
+                logger.debug("Optional crop/bleed box update skipped on page %s", page.number + 1)
+
+            rect_after = page.rect
             note_rect = fitz.Rect(
                 original_rect.x1 + padding / 2,
-                original_rect.y0 + padding,
-                new_rect.x1 - padding,
-                original_rect.y1 - padding,
+                rect_after.y0 + padding,
+                rect_after.x1 - padding,
+                rect_after.y1 - padding,
             )
 
-        # 확장 영역이 실제로 보이도록 mediabox/cropbox/bleedbox를 모두 업데이트
-        page.set_mediabox(new_rect)
-        try:
-            page.set_cropbox(new_rect)
-            page.set_bleedbox(new_rect)
-        except Exception:
-            # 일부 PDF에선 crop/bleed 설정이 없을 수 있음
-            logger.debug("Optional crop/bleed box update skipped on page %s", page.number + 1)
 
         if note_rect.height <= 0 or note_rect.width <= 0:
             logger.debug("Note rect is non-positive (w=%s, h=%s) on page %s", note_rect.width, note_rect.height, page.number + 1)
