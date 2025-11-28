@@ -54,17 +54,39 @@ class PdfNoteService:
 
     def _extend_page_with_note(self, page: fitz.Page, markdown_text: str) -> None:
         original_rect = page.rect
-        new_height = original_rect.height * 1.2  # 20% extra room at bottom
-        new_rect = fitz.Rect(original_rect.x0, original_rect.y0, original_rect.x1, original_rect.y0 + new_height)
-        page.set_mediabox(new_rect)
-
         padding = 16
-        note_rect = fitz.Rect(
-            original_rect.x0 + padding,
-            original_rect.y1 + padding / 2,
-            original_rect.x1 - padding,
-            new_rect.y1 - padding,
-        )
+
+        # Landscape(가로) -> 아래로 20% 확장, Portrait(세로) -> 오른쪽으로 30% 확장
+        if original_rect.width >= original_rect.height:
+            new_height = original_rect.height * 1.2
+            new_rect = fitz.Rect(
+                original_rect.x0,
+                original_rect.y0,
+                original_rect.x1,
+                original_rect.y0 + new_height,
+            )
+            page.set_mediabox(new_rect)
+            note_rect = fitz.Rect(
+                original_rect.x0 + padding,
+                original_rect.y1 + padding / 2,
+                original_rect.x1 - padding,
+                new_rect.y1 - padding,
+            )
+        else:
+            new_width = original_rect.width * 1.3
+            new_rect = fitz.Rect(
+                original_rect.x0,
+                original_rect.y0,
+                original_rect.x0 + new_width,
+                original_rect.y1,
+            )
+            page.set_mediabox(new_rect)
+            note_rect = fitz.Rect(
+                original_rect.x1 + padding / 2,
+                original_rect.y0 + padding,
+                new_rect.x1 - padding,
+                original_rect.y1 - padding,
+            )
 
         lines = self._prepare_colored_lines(markdown_text)
         if not lines:
