@@ -29,16 +29,16 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    PDF[(Slide PDF, application/pdf)] --> P[Gemini parts]
+    PDF["Slide PDF, application/pdf"] --> P["Gemini parts"]
     TXT[[TRANSCRIPT_RAW]] --> P
-    META[meta block (title/subject/professor)] --> P
-    P --> GC[generate_cards\nJSON schema: LectureCardsOutput]
-    P --> GN[generate_lecture_notes\nJSON schema: LectureNotesOutput]
-    P --> CT[clean_transcript\nJSON schema: CleanTranscriptOutput]
+    META["meta block (title/subject/professor)"] --> P
+    P --> GC["generate_cards\nJSON schema: LectureCardsOutput"]
+    P --> GN["generate_lecture_notes\nJSON schema: LectureNotesOutput"]
+    P --> CT["clean_transcript\nJSON schema: CleanTranscriptOutput"]
 
-    GC --> CSV[render_csv -> csv_url]
-    GN --> NOTE[PdfNoteService embeds notes\npage_number = real PDF page]
-    CT --> CLEANED[transcript.cleaned_text]
+    GC --> CSV["render_csv -> csv_url"]
+    GN --> NOTE["PdfNoteService embeds notes\npage_number = real PDF page"]
+    CT --> CLEANED["transcript.cleaned_text"]
 ```
 
 - 파일 파트: `{"file_data": {"file_uri": ..., "mime_type": "application/pdf"}}`
