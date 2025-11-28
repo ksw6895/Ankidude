@@ -81,15 +81,15 @@ class PdfNoteService:
             extra_height = original_rect.height * 0.2
             new_rect = fitz.Rect(
                 original_rect.x0,
-                original_rect.y0 - extra_height,
+                original_rect.y0,
                 original_rect.x1,
-                original_rect.y1,
+                original_rect.y1 + extra_height,
             )
             note_rect = fitz.Rect(
                 original_rect.x0 + padding,
-                new_rect.y0 + padding,
+                original_rect.y1 + padding,
                 original_rect.x1 - padding,
-                original_rect.y0 - padding / 2,
+                new_rect.y1 - padding,
             )
         else:
             new_width = original_rect.width * 1.3
