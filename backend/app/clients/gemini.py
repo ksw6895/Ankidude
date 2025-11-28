@@ -184,6 +184,17 @@ class GeminiClient:
 
         self.client = client or genai.Client(api_key=self.api_key)
 
+    def _call_with_timeout(self, fn, *, kwargs: Dict[str, Any]) -> Any:
+        """
+        일부 google-genai 버전은 request_options를 지원하지 않는다.
+        지원되면 timeout을 넣고, TypeError가 나면 타임아웃 없이 재시도한다.
+        """
+        try:
+            return fn(**kwargs, request_options={"timeout": self.request_timeout})
+        except TypeError:
+            logger.warning("GenAI client lacks request_options support; retrying without timeout.")
+            return fn(**kwargs)
+
     def upload_pdf(self, pdf_path: str | Path, *, display_name: Optional[str] = None) -> Dict[str, str]:
         path = Path(pdf_path)
         if not path.exists():
@@ -197,10 +208,9 @@ class GeminiClient:
         )
         start = time.monotonic()
         try:
-            uploaded = self.client.files.upload(
-                file=str(upload_path),
-                config=config,
-                request_options={"timeout": self.request_timeout},
+            uploaded = self._call_with_timeout(
+                self.client.files.upload,
+                kwargs={"file": str(upload_path), "config": config},
             )
         finally:
             if temp_dir:
@@ -231,11 +241,13 @@ class GeminiClient:
             "max_output_tokens": self.max_output_tokens,
         }
         start = time.monotonic()
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=[{"role": "user", "parts": parts}],
-            config=config,
-            request_options={"timeout": self.request_timeout},
+        response = self._call_with_timeout(
+            self.client.models.generate_content,
+            kwargs={
+                "model": self.model_id,
+                "contents": [{"role": "user", "parts": parts}],
+                "config": config,
+            },
         )
         logger.info("Gemini cards call finished in %.1fs", time.monotonic() - start)
 
@@ -284,11 +296,13 @@ class GeminiClient:
             "max_output_tokens": self.max_output_tokens,
         }
         start = time.monotonic()
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=[{"role": "user", "parts": parts}],
-            config=config,
-            request_options={"timeout": self.request_timeout},
+        response = self._call_with_timeout(
+            self.client.models.generate_content,
+            kwargs={
+                "model": self.model_id,
+                "contents": [{"role": "user", "parts": parts}],
+                "config": config,
+            },
         )
         logger.info("Gemini notes call finished in %.1fs", time.monotonic() - start)
 
@@ -349,11 +363,13 @@ class GeminiClient:
             "max_output_tokens": self.max_output_tokens,
         }
         start = time.monotonic()
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=[{"role": "user", "parts": parts}],
-            config=config,
-            request_options={"timeout": self.request_timeout},
+        response = self._call_with_timeout(
+            self.client.models.generate_content,
+            kwargs={
+                "model": self.model_id,
+                "contents": [{"role": "user", "parts": parts}],
+                "config": config,
+            },
         )
         logger.info("Gemini clean call finished in %.1fs", time.monotonic() - start)
 
