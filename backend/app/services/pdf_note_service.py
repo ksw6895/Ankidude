@@ -138,11 +138,6 @@ class PdfNoteService:
         if not lines:
             logger.debug("No note lines to render on page %s", page.number + 1)
             return
-        # 임시: 노트 영역을 시각화해서 좌표 문제 여부를 확인한다.
-        try:
-            page.draw_rect(note_rect, fill=(0.95, 0.95, 0.95), color=None, overlay=True)
-        except Exception:
-            logger.debug("Failed to draw debug rect on page %s", page.number + 1, exc_info=True)
         logger.info(
             "Rendering notes on page %s (lines=%s, note_rect=%.1fx%.1f @ %.1f,%.1f)",
             page.number + 1,
