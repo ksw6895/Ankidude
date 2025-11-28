@@ -209,38 +209,90 @@ class PdfNoteService:
         # Fill note area with white so text is visible even on transparent page extensions.
         page.draw_rect(note_rect, color=None, fill=(1, 1, 1), overlay=True)
 
-        line_height = font_size * 1.25
+        # Give generous line height for CJK glyphs to avoid clipping / zero-write issues.
+        line_height = font_size * 1.8
         y = note_rect.y0
-        for text, color in lines:
-            if y + line_height > note_rect.y1:
-                return False
-            rect = fitz.Rect(note_rect.x0, y, note_rect.x1, y + line_height)
-            fontname = self.font_name
-            if self.font_path:
-                try:
-                    page.insert_font(fontname=fontname, fontfile=str(self.font_path))
-                except Exception:
-                    logger.debug("Font registration failed on page %s, falling back to helv", page.number + 1)
-                    fontname = "helv"
+        fontname = self.font_name
+        if self.font_path:
+            try:
+                page.insert_font(fontname=fontname, fontfile=str(self.font_path))
+            except Exception:
+                logger.debug("Font registration failed on page %s, falling back to helv", page.number + 1)
+                fontname = "helv"
 
-            written = page.insert_textbox(
-                rect,
-                text,
-                fontsize=font_size,
-                color=color,
-                align=0,
-                fontname=fontname,
-                overlay=True,  # ensure text stays above slide content
-            )
-            if written == 0:
-                logger.warning(
-                    "Text not written (len=%s, font=%s, size=%s) on page %s rect=%s",
-                    len(text),
-                    fontname,
-                    font_size,
-                    page.number + 1,
+        max_width = note_rect.width
+        font_obj = None
+        if self.font_path:
+            try:
+                font_obj = fitz.Font(fontfile=str(self.font_path))
+            except Exception:
+                logger.debug("Font load failed for width calc on page %s", page.number + 1)
+
+        def wrap_to_width(text: str) -> list[str]:
+            """Wrap a single logical line to fit the note width using font metrics."""
+            words = text.split()
+            wrapped: list[str] = []
+            current = ""
+
+            def fits(s: str) -> bool:
+                if font_obj:
+                    return font_obj.text_length(s, fontsize=font_size) <= max_width
+                return fitz.get_text_length(s, fontsize=font_size, fontname=fontname) <= max_width
+
+            for word in words:
+                candidate = (current + " " + word).strip()
+                if current and fits(candidate):
+                    current = candidate
+                    continue
+
+                if current:
+                    wrapped.append(current)
+                    current = ""
+
+                if fits(word):
+                    current = word
+                    continue
+
+                # Hard-wrap a single long token
+                chunk = ""
+                for ch in word:
+                    trial = chunk + ch
+                    if fits(trial):
+                        chunk = trial
+                    else:
+                        if chunk:
+                            wrapped.append(chunk)
+                        chunk = ch
+                if chunk:
+                    current = chunk
+
+            if current:
+                wrapped.append(current)
+            return wrapped or [text]
+
+        for text, color in lines:
+            for piece in wrap_to_width(text):
+                if y + line_height > note_rect.y1:
+                    return False
+                rect = fitz.Rect(note_rect.x0, y, note_rect.x1, y + line_height)
+                written = page.insert_textbox(
                     rect,
+                    piece,
+                    fontsize=font_size,
+                    color=color,
+                    align=0,
+                    fontname=fontname,
+                    overlay=True,  # ensure text stays above slide content
                 )
-                return False
-            y += line_height
+                if written == 0:
+                    logger.warning(
+                        "Text not written (len=%s, font=%s, size=%s) on page %s rect=%s",
+                        len(piece),
+                        fontname,
+                        font_size,
+                        page.number + 1,
+                        rect,
+                    )
+                    return False
+                y += line_height
         return True
