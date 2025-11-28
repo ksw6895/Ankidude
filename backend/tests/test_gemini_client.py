@@ -33,7 +33,7 @@ class _FakeClient:
 
 class GeminiClientStructuredOutputTests(unittest.TestCase):
     def setUp(self):
-        self.slides = [{"index": 1, "title": "Intro", "body": "Brain basics"}]
+        self.pdf_file = {"uri": "gs://files/slide.pdf", "mime_type": "application/pdf"}
         self.transcript = "This is a raw transcript"
         self.meta = {"title": "Neuro 101", "subject": "Neurology", "professor": "Kim"}
 
@@ -51,7 +51,7 @@ class GeminiClientStructuredOutputTests(unittest.TestCase):
         client = GeminiClient(
             api_key="test-key", client=fake_client, model_id="fake-model", max_output_tokens=1024
         )
-        result = client.generate_cards(self.slides, self.transcript, self.meta)
+        result = client.generate_cards(self.pdf_file, self.transcript, self.meta)
 
         self.assertEqual(result.cleaned_transcript, payload["cleaned_transcript"])
         self.assertEqual(len(result.cards), 2)
@@ -64,6 +64,7 @@ class GeminiClientStructuredOutputTests(unittest.TestCase):
         self.assertEqual(call["config"]["response_mime_type"], "application/json")
         self.assertIn("response_json_schema", call["config"])
         self.assertEqual(call["config"]["max_output_tokens"], 1024)
+        self.assertEqual(call["contents"][0]["parts"][0]["file_data"]["file_uri"], self.pdf_file["uri"])
 
     def test_generate_cards_raises_on_invalid_json(self):
         fake_response = _FakeResponse("not json")
@@ -71,7 +72,7 @@ class GeminiClientStructuredOutputTests(unittest.TestCase):
         client = GeminiClient(api_key="test-key", client=fake_client)
 
         with self.assertRaises(GeminiStructuredOutputError):
-            client.generate_cards(self.slides, self.transcript, self.meta)
+            client.generate_cards(self.pdf_file, self.transcript, self.meta)
 
     def test_generate_cards_raises_on_empty_response(self):
         fake_response = _FakeResponse("")
@@ -79,7 +80,7 @@ class GeminiClientStructuredOutputTests(unittest.TestCase):
         client = GeminiClient(api_key="test-key", client=fake_client)
 
         with self.assertRaises(GeminiStructuredOutputError):
-            client.generate_cards(self.slides, self.transcript, self.meta)
+            client.generate_cards(self.pdf_file, self.transcript, self.meta)
 
     def test_generate_notes_returns_page_notes(self):
         payload = {
@@ -94,7 +95,7 @@ class GeminiClientStructuredOutputTests(unittest.TestCase):
         client = GeminiClient(
             api_key="test-key", client=fake_client, model_id="fake-model", max_output_tokens=1024
         )
-        notes = client.generate_lecture_notes(self.slides, self.transcript, self.meta)
+        notes = client.generate_lecture_notes(self.pdf_file, self.transcript, self.meta)
 
         self.assertEqual(len(notes), 2)
         self.assertEqual(notes[0].page_number, 1)
@@ -109,7 +110,7 @@ class GeminiClientStructuredOutputTests(unittest.TestCase):
         client = GeminiClient(api_key="test-key", client=fake_client)
 
         with self.assertRaises(GeminiStructuredOutputError):
-            client.generate_lecture_notes(self.slides, self.transcript, self.meta)
+            client.generate_lecture_notes(self.pdf_file, self.transcript, self.meta)
 
 
 if __name__ == "__main__":

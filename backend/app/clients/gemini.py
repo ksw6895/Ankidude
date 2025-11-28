@@ -1,7 +1,8 @@
 import json
 import logging
 import os
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from google import genai
 from pydantic import ValidationError
@@ -20,69 +21,66 @@ from app.schemas.gemini_cards import (
 logger = logging.getLogger(__name__)
 
 
-def _serialize_slides(slides: List[Dict]) -> str:
-    blocks = ["[SLIDES]"]
-    for slide in slides:
-        blocks.append(f"--- SLIDE {slide.get('index', '')} ---")
-        blocks.append(f"Title: {slide.get('title', '')}")
-        blocks.append("Body:")
-        blocks.append(slide.get("body", ""))
-        blocks.append("")
-    return "\n".join(blocks)
-
-
-def _build_prompt(slides: List[Dict], transcript_text: str, meta: Dict) -> str:
-    meta_block = "\n".join(
+def _build_meta_block(meta: Dict) -> str:
+    return "\n".join(
         [
             f"Course: {meta.get('subject') or ''}",
             f"Lecture Title: {meta.get('title') or ''}",
             f"Professor: {meta.get('professor') or ''}",
         ]
     )
-    tag_hint = meta.get("subject") or meta.get("title") or ""
 
-    return f"""
+
+def _pdf_file_part(pdf_file: Dict[str, str]) -> Dict[str, Dict[str, str]]:
+    uri = pdf_file.get("uri") or pdf_file.get("file_uri")
+    mime_type = pdf_file.get("mime_type")
+    if not uri or not mime_type:
+        raise ValueError("pdf_file must include uri/file_uri and mime_type")
+    return {"file_data": {"file_uri": uri, "mime_type": mime_type}}
+
+
+def _build_cards_parts(pdf_file: Dict[str, str], transcript_text: str, meta: Dict) -> List[Dict[str, Any]]:
+    meta_block = _build_meta_block(meta)
+    tag_hint = meta.get("subject") or meta.get("title") or ""
+    prompt = f"""
 You are generating Korean/English medical study flashcards for Anki Basic (Front/Back).
 
-Follow these rules:
-- Use slides as the source of truth; use the transcript only to clarify emphasis and fix STT errors.
-- Normalize medical terminology using spellings from slides.
-- Do not hallucinate content that is not supported by slides or transcript.
+Source priority:
+- The attached PDF slides (file input) are the ground truth.
+- [TRANSCRIPT_RAW] is only for emphasis, spoken clarifications, and fixing STT errors.
+
+Rules:
+- Normalize medical terminology using the slide PDF; do not hallucinate beyond PDF + transcript.
 - Prefer concise, exam-ready answers with one concept per card.
 - Tags should derive from metadata when possible (e.g., "{tag_hint}").
 
-The API will enforce a response schema with:
+The API will enforce a JSON schema with:
 - cleaned_transcript: normalized transcript string
 - cards: array of objects with front, back, and optional tag
 Fill every required field in that schema.
 
-Here is metadata:
+Metadata:
 {meta_block}
+""".strip()
 
-{_serialize_slides(slides)}
+    return [
+        _pdf_file_part(pdf_file),
+        {"text": prompt},
+        {"text": f"[TRANSCRIPT_RAW]\n{transcript_text}"},
+    ]
 
-[TRANSCRIPT_RAW]
-{transcript_text}
-"""
 
-
-def _build_note_prompt(slides: List[Dict], transcript_text: str, meta: Dict) -> str:
-    meta_block = "\n".join(
-        [
-            f"Course: {meta.get('subject') or ''}",
-            f"Lecture Title: {meta.get('title') or ''}",
-            f"Professor: {meta.get('professor') or ''}",
-        ]
-    )
-
-    return f"""
+def _build_note_parts(pdf_file: Dict[str, str], transcript_text: str, meta: Dict) -> List[Dict[str, Any]]:
+    meta_block = _build_meta_block(meta)
+    prompt = f"""
 You are an elite medical student taking perfectly organized notes during a lecture.
-Your goal is to **transcribe and organize the professor's spoken words (transcript)** onto the corresponding slide pages.
+Your goal is to **transcribe and organize the professor's spoken words (transcript)** onto the correct PDF slide pages.
 
 **CRITICAL INSTRUCTION:**
-- Do NOT just summarize the text written on the slide. The user already has the slide.
-- **Your main source is the [TRANSCRIPT_RAW].** You must extract explanations, clinical tips, and emphasized details from the speech and place them on the page where that topic is discussed.
-- Use the slide text only as a "context anchor" to decide *which page* the professor is currently talking about.
+- Use the attached PDF as the slide source and map topics to the actual PDF page order (1-based).
+- Ignore any page numbers printed on the slide graphic; return the real PDF page index in `page_number`.
+- **Your main source is the [TRANSCRIPT_RAW].** Extract explanations, clinical tips, and emphasized details from the speech and place them on the PDF page where that topic is discussed.
+- Do NOT just summarize the text written on the slide. The user already has the slide; slide text is only a context anchor to decide the current page.
 
 **Format & Style Rules:**
 - **Language/Tone:** Korean 중심, 존댓말 금지. 문장은 동사/형용사 평서형으로 끝내기(`~다`, `~한다`, `~해야 한다`). 체언 종결형·명사형 어미(`~함`, `~필요`) 금지.
@@ -100,42 +98,36 @@ Response schema (JSON):
   ]
 }}
 
-**Metadata:**
+Metadata:
 {meta_block}
+""".strip()
 
-**Slides (Context Anchors):**
-{_serialize_slides(slides)}
+    return [
+        _pdf_file_part(pdf_file),
+        {"text": prompt},
+        {"text": f"[TRANSCRIPT_RAW]\n{transcript_text}"},
+    ]
 
-**[TRANSCRIPT_RAW] (Source of Content):**
-{transcript_text}
-"""
 
-
-def _build_clean_prompt(slides: List[Dict], transcript_text: str, meta: Dict) -> str:
-    meta_block = "\n".join(
-        [
-            f"Course: {meta.get('subject') or ''}",
-            f"Lecture Title: {meta.get('title') or ''}",
-            f"Professor: {meta.get('professor') or ''}",
-        ]
-    )
-    return f"""
+def _build_clean_parts(pdf_file: Dict[str, str], transcript_text: str, meta: Dict) -> List[Dict[str, Any]]:
+    meta_block = _build_meta_block(meta)
+    prompt = f"""
 You are cleaning a noisy lecture transcript.
 
 Goals:
-- Output a fully cleaned transcript in Korean when possible; retain original English terms, especially medical terms. If Korean term exists, append English in parentheses where relevant. Keep original ordering and speaker context minimal (no hallucinated speakers).
-- Fix STT typos, spacing, and punctuation.
-- Do not summarize, shorten, or reorder. Do not add headers or bullets. Output plain text only.
+- Output a fully cleaned transcript in Korean when possible; retain original English terms, especially medical terms. If a Korean term exists, append English in parentheses where relevant. Keep original ordering and avoid hallucinated speakers.
+- Use the attached PDF slides as a terminology anchor; prefer spellings from the PDF.
+- Fix STT typos, spacing, and punctuation. Do not summarize, shorten, reorder, or add headers/bullets. Output plain text only.
 
 Metadata (for terminology hints):
 {meta_block}
+""".strip()
 
-Slides (for terminology anchoring):
-{_serialize_slides(slides)}
-
-[TRANSCRIPT_RAW]
-{transcript_text}
-"""
+    return [
+        _pdf_file_part(pdf_file),
+        {"text": prompt},
+        {"text": f"[TRANSCRIPT_RAW]\n{transcript_text}"},
+    ]
 
 
 class GeminiStructuredOutputError(RuntimeError):
@@ -161,6 +153,18 @@ class GeminiClient:
 
         self.client = client or genai.Client(api_key=self.api_key)
 
+    def upload_pdf(self, pdf_path: str | Path, *, display_name: Optional[str] = None) -> Dict[str, str]:
+        path = Path(pdf_path)
+        if not path.exists():
+            raise FileNotFoundError(f"PDF not found: {pdf_path}")
+
+        uploaded = self.client.files.upload(
+            file=str(path),
+            mime_type="application/pdf",
+            display_name=display_name or path.name,
+        )
+        return {"uri": uploaded.uri, "mime_type": uploaded.mime_type}
+
     @retry(
         wait=wait_exponential(multiplier=1, min=1, max=10),
         stop=stop_after_attempt(2),
@@ -168,12 +172,12 @@ class GeminiClient:
     )
     def generate_cards(
         self,
-        slides: List[Dict],
+        pdf_file: Dict[str, str],
         transcript_text: str,
         meta: Optional[Dict] = None,
     ) -> LLMResult:
         meta = meta or {}
-        prompt = _build_prompt(slides, transcript_text, meta)
+        parts = _build_cards_parts(pdf_file, transcript_text, meta)
         config = {
             "response_mime_type": "application/json",
             "response_json_schema": LectureCardsOutput.model_json_schema(),
@@ -182,14 +186,14 @@ class GeminiClient:
 
         response = self.client.models.generate_content(
             model=self.model_id,
-            contents=prompt,
+            contents=[{"role": "user", "parts": parts}],
             config=config,
         )
 
         if not response or not response.text:
             logger.error(
                 "Empty structured response from Gemini",
-                extra={"prompt": prompt, "config": config, "raw_response": repr(response)},
+                extra={"parts": parts, "config": config, "raw_response": repr(response)},
             )
             raise GeminiStructuredOutputError("Gemini response text is empty")
 
@@ -199,7 +203,7 @@ class GeminiClient:
             logger.error(
                 "Failed to validate structured Gemini response",
                 extra={
-                    "prompt": prompt,
+                    "parts": parts,
                     "config": config,
                     "raw_response": response.text,
                 },
@@ -219,12 +223,12 @@ class GeminiClient:
     )
     def generate_lecture_notes(
         self,
-        slides: List[Dict],
+        pdf_file: Dict[str, str],
         transcript_text: str,
         meta: Optional[Dict] = None,
     ) -> List[PageNote]:
         meta = meta or {}
-        prompt = _build_note_prompt(slides, transcript_text, meta)
+        parts = _build_note_parts(pdf_file, transcript_text, meta)
         config = {
             "response_mime_type": "application/json",
             "response_json_schema": LectureNotesOutput.model_json_schema(),
@@ -233,14 +237,14 @@ class GeminiClient:
 
         response = self.client.models.generate_content(
             model=self.model_id,
-            contents=prompt,
+            contents=[{"role": "user", "parts": parts}],
             config=config,
         )
 
         if not response or not response.text:
             logger.error(
                 "Empty structured response from Gemini (notes)",
-                extra={"prompt": prompt, "config": config, "raw_response": repr(response)},
+                extra={"parts": parts, "config": config, "raw_response": repr(response)},
             )
             raise GeminiStructuredOutputError("Gemini response text is empty")
 
@@ -266,7 +270,7 @@ class GeminiClient:
             logger.error(
                 "Failed to validate structured Gemini notes response",
                 extra={
-                    "prompt": prompt,
+                    "parts": parts,
                     "config": config,
                     "raw_response": response.text,
                 },
@@ -282,12 +286,12 @@ class GeminiClient:
     )
     def clean_transcript(
         self,
-        slides: List[Dict],
+        pdf_file: Dict[str, str],
         transcript_text: str,
         meta: Optional[Dict] = None,
     ) -> str:
         meta = meta or {}
-        prompt = _build_clean_prompt(slides, transcript_text, meta)
+        parts = _build_clean_parts(pdf_file, transcript_text, meta)
         config = {
             "response_mime_type": "application/json",
             "response_json_schema": CleanTranscriptOutput.model_json_schema(),
@@ -296,14 +300,14 @@ class GeminiClient:
 
         response = self.client.models.generate_content(
             model=self.model_id,
-            contents=prompt,
+            contents=[{"role": "user", "parts": parts}],
             config=config,
         )
 
         if not response or not response.text:
             logger.error(
                 "Empty structured response from Gemini (clean transcript)",
-                extra={"prompt": prompt, "config": config, "raw_response": repr(response)},
+                extra={"parts": parts, "config": config, "raw_response": repr(response)},
             )
             raise GeminiStructuredOutputError("Gemini response text is empty")
 
@@ -313,7 +317,7 @@ class GeminiClient:
             logger.error(
                 "Failed to validate structured Gemini clean transcript response",
                 extra={
-                    "prompt": prompt,
+                    "parts": parts,
                     "config": config,
                     "raw_response": response.text,
                 },

@@ -11,7 +11,6 @@ from app.clients.gemini import GeminiClient
 from app.models import Lecture, LectureStatus, Transcript
 from app.services.csv_generator import render_csv
 from app.services.pdf_note_service import PdfNoteService
-from app.services.pdf_parser import parse_pdf_to_slides
 from app.storage.manager import StorageManager
 from app.utils.file_utils import ensure_local_file
 
@@ -36,10 +35,11 @@ def process_lecture_job(
         lecture.error_message = None
         db.commit()
 
+        gemini_client = GeminiClient()
         slides_path = ensure_local_file(lecture.slides_url)
         if slides_path.parent.name.startswith("ankidude_"):
             temp_paths.append(slides_path)
-        slides = parse_pdf_to_slides(slides_path)
+        pdf_file = gemini_client.upload_pdf(slides_path)
 
         transcript = db.query(Transcript).filter_by(lecture_id=lecture.id).first()
         if not transcript:
@@ -73,7 +73,6 @@ def process_lecture_job(
             db.add(transcript)
             db.commit()
 
-        gemini_client = GeminiClient()
         meta = {
             "title": lecture.title,
             "subject": lecture.subject,
@@ -92,7 +91,7 @@ def process_lecture_job(
         db.commit()
         logger.info("Job %s: Gemini 정제 단계 시작", lecture_id)
 
-        cleaned_text = gemini_client.clean_transcript(slides, transcript.raw_text or "", meta=meta)
+        cleaned_text = gemini_client.clean_transcript(pdf_file, transcript.raw_text or "", meta=meta)
         if cleaned_text:
             preview = cleaned_text[:500]
             suffix = "..." if len(cleaned_text) > 500 else ""
@@ -120,7 +119,7 @@ def process_lecture_job(
 
                 futures["cards"] = executor.submit(
                     GeminiClient().generate_cards,
-                    slides,
+                    pdf_file,
                     cleaned_for_use,
                     meta,
                 )
@@ -133,7 +132,7 @@ def process_lecture_job(
                 logger.info("Job %s: 노트 Gemini 호출 시작", lecture_id)
                 futures["notes"] = executor.submit(
                     GeminiClient().generate_lecture_notes,
-                    slides,
+                    pdf_file,
                     cleaned_for_use,
                     meta,
                 )
