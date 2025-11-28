@@ -28,15 +28,18 @@ class PdfNoteService:
         Falls back to PyMuPDF's default (may lose glyphs) if not found.
         """
         service_dir = Path(__file__).resolve().parent
-        candidates = [
-            service_dir / ".." / "assets" / "fonts" / "NotoSansKR-Regular.otf",  # backend/app/assets/...
-            service_dir.parent / "assets" / "fonts" / "NotoSansKR-Regular.otf",  # backend/app/assets/...
+        fonts_dir_candidates = [
+            service_dir / ".." / "assets" / "fonts",  # backend/app/assets/...
+            service_dir.parent / "assets" / "fonts",  # backend/app/assets/...
         ]
-        for candidate in candidates:
-            candidate = candidate.resolve()
-            if candidate.exists():
-                logger.info("Using Korean font at %s", candidate)
-                return candidate
+        preferred_names = ["NotoSansKR-Regular.ttf", "NotoSansKR-Regular.otf"]
+        for fonts_dir in fonts_dir_candidates:
+            fonts_dir = fonts_dir.resolve()
+            for name in preferred_names:
+                candidate = fonts_dir / name
+                if candidate.exists():
+                    logger.info("Using Korean font at %s", candidate)
+                    return candidate
         logger.warning("Korean font asset missing; falling back to default font (may lose glyphs)")
         return None
 
