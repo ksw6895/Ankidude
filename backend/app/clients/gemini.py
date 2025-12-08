@@ -168,19 +168,19 @@ When processing [TRANSCRIPT_RAW]:
 ## Response schema (JSON)
 
 ```json
-{
+{{
   "notes": [
-    {
+    {{
       "page_number": 1,
       "content": "- 첫 페이지에서 교수의 도입부 설명을 정리한다...\n- 강의의 전체 목표와 오늘 다룰 큰 주제를 불릿으로 정리한다..."
-    },
-    {
+    }},
+    {{
       "page_number": 2,
       "content": "- 병태생리 기전을 교수 설명 순서에 맞춰 거의 그대로 옮기되, 문장만 다듬는다...\n- 예시와 임상 팁, 자주 틀리는 포인트를 각각 별도 불릿으로 정리한다..."
-    }
+    }}
     // ...
   ]
-}
+}}
 ```
 
 Metadata:
