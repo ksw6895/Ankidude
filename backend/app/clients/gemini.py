@@ -105,63 +105,77 @@ Compared to normal summarization, you work in **"almost verbatim, low-compressio
 When processing [TRANSCRIPT_RAW]:
 
 - **Coverage priority**
-  - If a sentence carries meaning (definition, mechanism, reasoning, warning, exam tip, example, differential, treatment nuance, etc.), try to keep it in the notes.
-  - If the professor says 10 meaningful sentences about a topic, your notes for that slide should usually reflect **most of those sentences**, not just 2–3.
-  - Prefer **more bullets with shorter, clean sentences** over a tiny number of heavily compressed bullets.
+  - 만약 한 문장이 정의·기전·이유·결과·경고·예시·감별·치료 포인트 등 **어떤 의미라도** 가진다면, 가능하면 노트에 포함한다.
+  - 교수가 어떤 주제에 대해 의미 있는 문장을 10개 정도 말하면, 그 슬라이드 노트에도 보통 그 중 **대부분이 반영되도록** 쓴다.
+  - 아주 적은 수의 불릿으로 강하게 압축하기보다는, **여러 개의 짧고 명료한 불릿**으로 나누어 설명하는 쪽을 선호한다.
 
 - **What to remove**
-  - Remove or compress only:
-    - Pure fillers (`어…`, `그러니까…`, 말버릇, 맥락 없는 농담 등),
-    - Exact repetitions,
-    - Broken or half-finished sentences that are immediately restated more clearly.
-  - Do **not** remove clinically or conceptually meaningful side remarks just because they are “작은 디테일”.
+  - 다음과 같은 부분만 과감하게 제거하거나 짧게 압축한다:
+    - 순수한 말버릇·추임새 (`어…`, `그러니까…`, `어쨌든` 등),
+    - 그대로 반복된 문장,
+    - 곧바로 더 명확하게 다시 설명해 주는, 미완성 문장.
+  - 작은 디테일이라도 **의미 있는 임상 정보**라면, 가급적 남겨 둔다.
 
 - **Rewriting policy**
-  - You **may paraphrase** to obey the Korean style rules and to make sentences clearer.
-  - Keep the **logical order** and nuance of the original explanation (기전 → 결과, 진단 기준 → 예외, 치료 원칙 → 예시 등).
-  - Long spoken explanations can be split into multiple bullets, but the **total information content** should stay close to the original.
+  - 한국어 문장을 자연스럽게 만들기 위해 **완곡한 재서술**은 허용한다.
+  - 다만, 원래 설명의 **논리 구조**(예: 원인 → 기전 → 결과, 기준 → 예외, 원칙 → 예시 등)는 최대한 유지한다.
+  - 한 문장으로 말한 설명이 너무 길면, 노트에서는 2~3문장으로 나누어 적되, **정보량은 거의 그대로 보존**한다.
 
 - **Reordering**
-  - Keep the natural flow of the lecture as much as possible.
-  - Minimal rearrangement is allowed only to:
-    - Group closely related sentences under one bullet,
-    - Move a sentence to the correct slide if the topic clearly belongs there.
+  - 가능하면 강의에서 말한 순서를 그대로 따라간다.
+  - 다음의 경우에만 최소한으로 재배치한다:
+    - 서로 밀접하게 연결된 내용들을 한 불릿 아래 묶을 때,
+    - 명백히 다른 슬라이드 주제에 속하는 내용을 그 슬라이드로 옮길 때.
 
 ---
 
 ## Format & Style Rules (for the written notes)
 
-- **Language/Tone:**  
-  - Korean 중심, 존댓말 금지.  
-  - 문장은 동사/형용사 평서형으로 끝내기 (`~다`, `~한다`, `~해야 한다`).  
-  - 체언 종결형·명사형 어미 (`~함`, `~필요`) 금지.
+- **Language/Tone (문장 형태와 말투)**  
+  - 한국어 중심으로 작성하고, 존댓말은 사용하지 않는다.  
+  - **모든 문장은 동사/형용사/이다 체로 끝나야 한다.**  
+    - 예: `~이 중요하다`, `~로 정의한다`, `~인 경우가 많다`, `~이라고 부른다`, `~로 생각할 수 있다`.  
+  - `~함`, `~필요`, `~증가`, `~감소`, `~의심` 같은 **체언 종결형·명사형 어미로 문장을 끝내지 않는다.**  
+    - 잘못된 예: `가스 교환 장애 증가`, `기도 과민성 증가`, `진단 필요`.  
+    - 올바른 예: `가스 교환 장애가 증가한다`, `기도 과민성이 증가한다`, `이 경우에는 추가적인 진단이 필요하다`.  
+  - 말투는 지나치게 명령조·전투조가 되지 않도록 하고,  
+    - **친구에게 개념을 설명해 주듯이** 부드럽지만 단정적인 어조로 적는다.
 
 - **Bullets:**  
-  - 각 불릿은 **1~2개의 완전한 문장**으로 작성 (문장 파편/키워드 나열 금지).  
-  - 한 슬라이드에서 다룬 내용이 많으면, 불릿 수를 늘려서라도 웬만한 설명을 모두 담는다.
+  - 각 불릿은 **1~2개의 완전한 문장**으로 작성한다 (키워드 나열 금지).  
+  - 불릿 안의 문장은 서로 자연스럽게 이어지도록 연결해서 적는다.  
+  - 한 슬라이드에서 다루는 내용이 많으면, 불릿 수를 늘려서라도 웬만한 설명을 거의 다 담는다.
 
 - **Depth & Coverage:**  
-  - 교수의 설명(기전/이유/결과)과 예시를 그대로 살리되, 구어체만 자연스럽게 정리한다.  
-  - **“핵심만 남기고 나머지는 걷어내는 요약”이 아니라, “거의 다 받아 적되 읽기 좋게 재구성하는 것”이 목표**다.  
-  - 교수의 설명이 3~4문장으로 이어지면, 노트에서도 보통 2~3문장 분량으로 정보 대부분을 유지한다.
+  - 교수의 설명(기전·이유·결과·예외·임상 팁)을 최대한 그대로 살리되,  
+    - 말투와 어순만 정리해서 **읽기 편한 설명문**으로 바꾼다.  
+  - 이 작업의 목표는  
+    - “핵심만 남기고 나머지를 걷어내는 요약”이 아니라,  
+    - “강의실에서 들은 내용을 **거의 다 받아 적으면서도** 읽기 좋게 정리하는 것”이다.  
+  - 따라서 한 토픽에 대해 3~4문장으로 설명했다면,  
+    - 노트에서도 보통 2~3문장 이상으로 풀어서 적는 것을 기본으로 한다.
 
 - **Meta remarks:**  
   - 시험·퀴즈·출제 언급은 별도 불릿으로 포함하고 `[EXAM]` 접두사를 붙인다.  
-  - 교수의 강조/경고는 별도 불릿으로 포함하고 `[HIGHLIGHT]` 접두사를 붙인다.  
-  - 가벼운 농담·메타 코멘트가 학습에 도움이 되면 `[ASIDE]`로 짧게 남긴다  
-    (예: 개념을 기억하기 좋은 비유, 함정 포인트, 자주 나오는 실수 등).
+    - 예: `[EXAM] 이 기준은 국시에서도 자주 묻는 포인트라고 강조한다.`  
+  - 교수의 강조·경고는 별도 불릿으로 포함하고 `[HIGHLIGHT]` 접두사를 붙인다.  
+    - 예: `[HIGHLIGHT] 이 부분에서 환자가 자주 악화되므로 실제 임상에서 특히 조심해야 한다고 설명한다.`  
+  - 가벼운 농담·메타 코멘트가 개념 이해에 도움이 되면 `[ASIDE]`로 짧게 남긴다.  
+    - 예: `[ASIDE] 교수는 이 병을 '게으른 폐'라고 비유하면서 환자 교육할 때 이렇게 설명하면 이해가 잘 된다고 말한다.`
 
 - **Length:**  
-  - 페이지당 900자 이하를 “권장 기준”으로 삼되,  
-    - 중요한 내용은 억지로 줄이지 말고,  
-    - 분량이 너무 넘어갈 것 같으면 **진짜로 덜 중요한 주변부**만 약간 축약한다.  
-  - 시험에 유의미한 디테일·예외·임상 팁은 길어지더라도 남긴다.
+  - 페이지당 900자를 권장 기준으로 삼는다.  
+  - 그러나 **중요한 내용은 글자 수 때문에 억지로 줄이지 않는다.**  
+  - 분량이 너무 길어지면,  
+    - 덜 중요한 주변부 설명만 약간 줄이고,  
+    - 정의·기전·진단·치료·예외·시험 포인트 같은 핵심은 그대로 남겨 둔다.
 
 - **No Hallucination:**  
-  - 대본이 침묵하는 슬라이드는 노트를 비워두거나,  
-    - 필요하면 **슬라이드에 이미 적힌 핵심만 한 줄**로 적는다.  
-  - 새로운 의학 정보나 예시는 **절대 창작하지 않는다.**  
-  - 모호할 때는 “교수가 실제로 말한 내용”만 재배치해서 사용한다.
+  - [TRANSCRIPT_RAW]에 아무 말도 없는 슬라이드는,  
+    - 노트를 비워 두거나,  
+    - 필요할 경우 슬라이드에 이미 적힌 핵심만 한 줄 정도로 정리한다.  
+  - 새로운 의학 정보, 가상의 예시, 추가적인 가이드라인을 **직접 만들어 내지 않는다.**  
+  - 애매한 경우에는 항상 “교수가 실제로 말한 내용”만 사용해서 문장을 만든다.
 
 ---
 
@@ -172,16 +186,18 @@ When processing [TRANSCRIPT_RAW]:
   "notes": [
     {{
       "page_number": 1,
-      "content": "- 첫 페이지에서 교수의 도입부 설명을 정리한다...\n- 강의의 전체 목표와 오늘 다룰 큰 주제를 불릿으로 정리한다..."
+      "content": "- 첫 페이지에서 교수는 오늘 강의의 전체 주제를 간단하게 소개한다.\n- 이 강의에서 어떤 질환을 중심으로 볼 것인지, 그리고 왜 이 질환이 임상에서 중요한지 설명한다."
     }},
     {{
       "page_number": 2,
-      "content": "- 병태생리 기전을 교수 설명 순서에 맞춰 거의 그대로 옮기되, 문장만 다듬는다...\n- 예시와 임상 팁, 자주 틀리는 포인트를 각각 별도 불릿으로 정리한다..."
+      "content": "- 이 슬라이드에서는 병태생리 기전을 큰 흐름부터 차근차근 설명한다.\n- 먼저 어떤 자극이 생기면 세포 수준에서 어떤 변화가 일어나는지, 그 결과로 임상 증상이 어떻게 나타나는지 순서대로 연결해서 이야기한다."
     }}
     // ...
   ]
 }}
 ```
+
+---
 
 Metadata:
 {meta_block}
